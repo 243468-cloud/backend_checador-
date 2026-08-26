@@ -29,7 +29,7 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public User createAdmin(String username, String password, String fullName, String email, Branch branch) {
-        String cleanUsername = username != null ? username.trim().toLowerCase() : "";
+        String cleanUsername = username != null ? username.trim() : "";
         String cleanPassword = password != null ? password.trim() : "";
         if (userRepository.existsByUsername(cleanUsername)) {
             throw new IllegalArgumentException("El nombre de usuario ya existe");
@@ -48,7 +48,7 @@ public class UserService implements UserDetailsService {
     @Transactional
     public User createEmployee(String username, String password, String fullName, String email,
                                 Branch branch, com.checador.entity.ShiftType shiftType) {
-        String cleanUsername = username != null ? username.trim().toLowerCase() : "";
+        String cleanUsername = username != null ? username.trim() : "";
         String cleanPassword = password != null ? password.trim() : "";
         if (userRepository.existsByUsername(cleanUsername)) {
             throw new IllegalArgumentException("El nombre de usuario ya existe");

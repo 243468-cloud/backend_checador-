@@ -182,13 +182,14 @@ public class AttendanceService {
      */
     @Transactional
     public Attendance updateAttendance(Long id, LocalDateTime checkIn, LocalDateTime checkOut,
-                                       AttendanceStatus status, String notes) {
+                                       AttendanceStatus status, String notes, Integer lateMinutes) {
         Attendance a = attendanceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Registro no encontrado"));
         if (checkIn != null) a.setCheckInTime(checkIn);
         if (checkOut != null) a.setCheckOutTime(checkOut);
         if (status != null) a.setStatus(status);
         if (notes != null) a.setNotes(notes);
+        if (lateMinutes != null) a.setLateMinutes(lateMinutes);
         a.calculateHoursWorked();
         return attendanceRepository.save(a);
     }

@@ -62,7 +62,7 @@ public class AuthController {
     @PostMapping("/login")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
-        String username = request.username() != null ? request.username().trim().toLowerCase() : "";
+        String username = request.username() != null ? request.username().trim() : "";
         String password = request.password() != null ? request.password().trim() : "";
         try {
             authenticationManager.authenticate(

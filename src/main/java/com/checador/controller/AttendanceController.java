@@ -125,11 +125,12 @@ public class AttendanceController {
     }
 
     @PutMapping("/admin/{id}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> updateAttendance(@PathVariable Long id,
                                                @RequestBody UpdateRequest req) {
         try {
             Attendance a = attendanceService.updateAttendance(
-                    id, req.checkInTime(), req.checkOutTime(), req.status(), req.notes());
+                    id, req.checkInTime(), req.checkOutTime(), req.status(), req.notes(), req.lateMinutes());
             return ResponseEntity.ok(toResponse(a));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -176,5 +177,5 @@ public class AttendanceController {
 
     public record CheckRequest(@NotNull Double latitude, @NotNull Double longitude) {}
     public record UpdateRequest(LocalDateTime checkInTime, LocalDateTime checkOutTime,
-                                AttendanceStatus status, String notes) {}
+                                AttendanceStatus status, String notes, Integer lateMinutes) {}
 }
