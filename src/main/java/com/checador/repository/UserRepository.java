@@ -14,10 +14,11 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE u.username = :username")
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE LOWER(u.username) = LOWER(TRIM(:username))")
     Optional<User> findByUsername(@Param("username") String username);
 
-    boolean existsByUsername(String username);
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE LOWER(u.username) = LOWER(TRIM(:username))")
+    boolean existsByUsername(@Param("username") String username);
 
     List<User> findByRole(Role role);
 

@@ -62,11 +62,13 @@ public class AuthController {
     @PostMapping("/login")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        String username = request.username() != null ? request.username().trim().toLowerCase() : "";
+        String password = request.password() != null ? request.password().trim() : "";
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+                    new UsernamePasswordAuthenticationToken(username, password));
 
-            User user = (User) userService.loadUserByUsername(request.username());
+            User user = (User) userService.loadUserByUsername(username);
             String token = jwtService.generateToken(user);
             String refresh = jwtService.generateRefreshToken(user);
 

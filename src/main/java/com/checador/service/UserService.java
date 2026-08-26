@@ -29,14 +29,16 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public User createAdmin(String username, String password, String fullName, String email, Branch branch) {
-        if (userRepository.existsByUsername(username)) {
+        String cleanUsername = username != null ? username.trim().toLowerCase() : "";
+        String cleanPassword = password != null ? password.trim() : "";
+        if (userRepository.existsByUsername(cleanUsername)) {
             throw new IllegalArgumentException("El nombre de usuario ya existe");
         }
         return userRepository.save(User.builder()
-                .username(username)
-                .password(passwordEncoder.encode(password))
-                .fullName(fullName)
-                .email(email)
+                .username(cleanUsername)
+                .password(passwordEncoder.encode(cleanPassword))
+                .fullName(fullName != null ? fullName.trim() : "")
+                .email(email != null ? email.trim() : null)
                 .role(Role.ADMIN)
                 .branch(branch)
                 .active(true)
@@ -45,15 +47,17 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public User createEmployee(String username, String password, String fullName, String email,
-                               Branch branch, com.checador.entity.ShiftType shiftType) {
-        if (userRepository.existsByUsername(username)) {
+                                Branch branch, com.checador.entity.ShiftType shiftType) {
+        String cleanUsername = username != null ? username.trim().toLowerCase() : "";
+        String cleanPassword = password != null ? password.trim() : "";
+        if (userRepository.existsByUsername(cleanUsername)) {
             throw new IllegalArgumentException("El nombre de usuario ya existe");
         }
         return userRepository.save(User.builder()
-                .username(username)
-                .password(passwordEncoder.encode(password))
-                .fullName(fullName)
-                .email(email)
+                .username(cleanUsername)
+                .password(passwordEncoder.encode(cleanPassword))
+                .fullName(fullName != null ? fullName.trim() : "")
+                .email(email != null ? email.trim() : null)
                 .role(Role.EMPLOYEE)
                 .branch(branch)
                 .shiftType(shiftType)
