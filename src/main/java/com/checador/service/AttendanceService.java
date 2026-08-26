@@ -44,9 +44,16 @@ public class AttendanceService {
     public Attendance checkIn(User employee, Branch branch, double lat, double lng) {
         LocalDate today = LocalDate.now();
 
-        // Verificar que no haya ya un check-in hoy
+        // 1. Verificar si ya tiene un turno activo sin cerrar
+        Optional<Attendance> activeOpt = attendanceRepository
+                .findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(employee.getId());
+        if (activeOpt.isPresent()) {
+            throw new IllegalStateException("Ya tienes una entrada activa registrada. Debes marcar salida antes de iniciar un nuevo turno.");
+        }
+
+        // 2. Verificar que no haya completado ya su jornada hoy
         if (attendanceRepository.existsByUserIdAndAttendanceDate(employee.getId(), today)) {
-            throw new IllegalStateException("Ya registraste tu entrada hoy");
+            throw new IllegalStateException("Ya completaste tu registro de asistencia de hoy.");
         }
 
         // Validar geolocalización
@@ -86,19 +93,28 @@ public class AttendanceService {
 
     /**
      * Registra la salida del empleado con validación de geolocalización.
+     * Funciona desde cualquier dispositivo donde el empleado inicie sesión.
      */
     @Transactional
     public Attendance checkOut(User employee, Branch branch, double lat, double lng) {
         LocalDate today = LocalDate.now();
-        Attendance attendance = attendanceRepository
-                .findByUserIdAndAttendanceDate(employee.getId(), today)
-                .orElseThrow(() -> new IllegalStateException("No tienes una entrada registrada hoy"));
 
-        if (attendance.getCheckOutTime() != null) {
-            throw new IllegalStateException("Ya registraste tu salida hoy");
+        // Buscar el turno activo sin cerrar (independientemente del dispositivo usado)
+        Attendance attendance = attendanceRepository
+                .findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(employee.getId())
+                .orElseGet(() -> attendanceRepository
+                        .findByUserIdAndAttendanceDate(employee.getId(), today)
+                        .orElse(null));
+
+        if (attendance == null) {
+            throw new IllegalStateException("No tienes una entrada activa para marcar salida.");
         }
 
-        // Validar geolocalización
+        if (attendance.getCheckOutTime() != null) {
+            throw new IllegalStateException("Ya registraste tu salida para este turno.");
+        }
+
+        // Validar geolocalización física del dispositivo actual al marcar salida
         validateLocation(branch, lat, lng);
 
         attendance.setCheckOutTime(LocalDateTime.now());
@@ -117,9 +133,16 @@ public class AttendanceService {
     }
 
     /**
-     * Obtiene el estado actual del empleado para hoy.
+     * Obtiene el estado actual del empleado (mantiene el turno activo al cambiar de dispositivo).
      */
     public Optional<Attendance> getTodayAttendance(Long userId) {
+        // 1. Si hay un turno activo abierto (checkIn sin checkOut), retornar ese turno activo
+        Optional<Attendance> active = attendanceRepository
+                .findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(userId);
+        if (active.isPresent()) {
+            return active;
+        }
+        // 2. Si no hay turno abierto, retornar el registro de hoy
         return attendanceRepository.findByUserIdAndAttendanceDate(userId, LocalDate.now());
     }
 

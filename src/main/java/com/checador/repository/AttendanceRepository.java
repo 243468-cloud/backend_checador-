@@ -16,6 +16,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     Optional<Attendance> findByUserIdAndAttendanceDate(Long userId, LocalDate date);
 
+    Optional<Attendance> findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(Long userId);
+
     List<Attendance> findByUserIdAndAttendanceDateBetween(Long userId, LocalDate from, LocalDate to);
 
     List<Attendance> findByBranchIdAndAttendanceDate(Long branchId, LocalDate date);
