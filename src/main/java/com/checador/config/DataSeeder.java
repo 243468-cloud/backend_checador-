@@ -23,24 +23,30 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Solo crear datos si no existe el superusuario
+        // Asegurar que exista al menos la sucursal Via Gourmet
+        Branch branch;
+        if (branchRepository.count() == 0) {
+            branch = branchRepository.save(Branch.builder()
+                    .name("Via Gourmet")
+                    .address("16a Pte. Nte. 304, Av. Cedros 402, Local 9, Fracc. Arboledas, C.P. 29030, Tuxtla Gutiérrez, Chis.")
+                    .latitude(16.7599)
+                    .longitude(-93.1319)
+                    .radiusMeters(150)
+                    .toleranceMinutes(10)
+                    .active(true)
+                    .build());
+            log.info("✅ Sucursal Via Gourmet creada automáticamente.");
+        } else {
+            branch = branchRepository.findAll().get(0);
+        }
+
+        // Solo crear usuarios demo si no existe el superusuario
         if (userRepository.existsByUsername("superadmin")) {
-            log.info("Datos de inicio ya existen, omitiendo seeder.");
+            log.info("Datos de usuario iniciales ya existen.");
             return;
         }
 
-        log.info("Inicializando datos de prueba...");
-
-        // Crear sucursal principal
-        Branch branch = branchRepository.save(Branch.builder()
-                .name("Sucursal Central")
-                .address("Av. Principal #100, Ciudad")
-                .latitude(19.4326)   // Ciudad de México (demo)
-                .longitude(-99.1332)
-                .radiusMeters(200)
-                .toleranceMinutes(10)
-                .active(true)
-                .build());
+        log.info("Inicializando usuarios de prueba...");
 
         // Crear Superusuario
         userRepository.save(User.builder()
