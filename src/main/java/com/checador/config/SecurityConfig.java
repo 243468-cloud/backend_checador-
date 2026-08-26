@@ -63,6 +63,10 @@ public class SecurityConfig {
                 // ── Notificaciones ────────────────────────────────────────
                 .requestMatchers("/api/notifications/**").hasAnyRole("ADMIN", "SUPERUSER")
 
+                // ── Ranking & Recompensas ─────────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/ranking/**").hasAnyRole("EMPLOYEE", "ADMIN", "SUPERUSER")
+                .requestMatchers(HttpMethod.PUT, "/api/ranking/config").hasRole("SUPERUSER")
+
                 // ── Permisos: empleado puede ver/crear los suyos; admin gestiona ──
                 .requestMatchers(HttpMethod.GET,  "/api/leaves/me").authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/leaves").authenticated()
