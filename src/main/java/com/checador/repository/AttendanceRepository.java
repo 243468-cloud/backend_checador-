@@ -14,9 +14,16 @@ import java.util.Optional;
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
-    Optional<Attendance> findByUserIdAndAttendanceDate(Long userId, LocalDate date);
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE a.user.id = :userId AND a.attendanceDate = :date")
+    Optional<Attendance> findByUserIdAndAttendanceDate(@Param("userId") Long userId, @Param("date") LocalDate date);
 
-    Optional<Attendance> findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(Long userId);
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE a.user.id = :userId AND a.checkOutTime IS NULL ORDER BY a.checkInTime DESC")
+    List<Attendance> findActiveAttendanceList(@Param("userId") Long userId);
+
+    default Optional<Attendance> findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(Long userId) {
+        List<Attendance> list = findActiveAttendanceList(userId);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
 
     List<Attendance> findByUserIdAndAttendanceDateBetween(Long userId, LocalDate from, LocalDate to);
 

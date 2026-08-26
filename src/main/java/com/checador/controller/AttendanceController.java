@@ -62,9 +62,27 @@ public class AttendanceController {
     }
 
     @GetMapping("/today")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> getTodayStatus(@AuthenticationPrincipal User user) {
-        Optional<Attendance> attendance = attendanceService.getTodayAttendance(user.getId());
-        return ResponseEntity.ok(attendance.map(this::toResponse).orElse(null));
+        try {
+            Optional<Attendance> attendance = attendanceService.getTodayAttendance(user.getId());
+            return ResponseEntity.ok(attendance.map(this::toResponse).orElse(null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Error consultando estado de hoy: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/my-history")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<?> getMyMonthlyHistory(@AuthenticationPrincipal User employee,
+                                                  @RequestParam int year,
+                                                  @RequestParam int month) {
+        try {
+            List<Attendance> records = attendanceService.getMonthlyAttendance(employee.getId(), year, month);
+            return ResponseEntity.ok(records.stream().map(this::toResponse).toList());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Error consultando historial: " + e.getMessage()));
+        }
     }
 
     // ─── Endpoints para ADMIN ─────────────────────────────────────────────────
