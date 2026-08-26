@@ -60,6 +60,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
             authenticationManager.authenticate(
@@ -81,7 +82,9 @@ public class AuthController {
 
             return ResponseEntity.ok(responseData);
         } catch (AuthenticationException e) {
-            return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas"));
+            return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
+        } catch (Exception e) {
+            return ResponseEntity.status(400).body(Map.of("error", "Error en inicio de sesión: " + e.getMessage()));
         }
     }
 

@@ -31,13 +31,17 @@ public class DataSeeder implements CommandLineRunner {
                     .address("16a Pte. Nte. 304, Av. Cedros 402, Local 9, Fracc. Arboledas, C.P. 29030, Tuxtla Gutiérrez, Chis.")
                     .latitude(16.7599)
                     .longitude(-93.1319)
-                    .radiusMeters(150)
+                    .radiusMeters(500)
                     .toleranceMinutes(10)
                     .active(true)
                     .build());
             log.info("✅ Sucursal Via Gourmet creada automáticamente.");
         } else {
             branch = branchRepository.findAll().get(0);
+            if (branch.getRadiusMeters() < 500) {
+                branch.setRadiusMeters(500);
+                branchRepository.save(branch);
+            }
         }
 
         // Solo crear usuarios demo si no existe el superusuario humberto
