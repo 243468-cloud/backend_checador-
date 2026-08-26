@@ -1,0 +1,44 @@
+package com.checador.repository;
+
+import com.checador.entity.Attendance;
+import com.checador.entity.AttendanceStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
+
+    Optional<Attendance> findByUserIdAndAttendanceDate(Long userId, LocalDate date);
+
+    List<Attendance> findByUserIdAndAttendanceDateBetween(Long userId, LocalDate from, LocalDate to);
+
+    List<Attendance> findByBranchIdAndAttendanceDate(Long branchId, LocalDate date);
+
+    List<Attendance> findByBranchIdAndAttendanceDateBetween(Long branchId, LocalDate from, LocalDate to);
+
+    @Query("SELECT a FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date ORDER BY a.user.fullName")
+    List<Attendance> findDailyAttendanceByBranch(@Param("branchId") Long branchId, @Param("date") LocalDate date);
+
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = 'ON_TIME'")
+    long countOnTimeByBranchAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
+
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = 'LATE'")
+    long countLateByBranchAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
+
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = 'ABSENT'")
+    long countAbsentByBranchAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
+
+    @Query("SELECT a FROM Attendance a WHERE a.user.id = :userId AND YEAR(a.attendanceDate) = :year AND MONTH(a.attendanceDate) = :month ORDER BY a.attendanceDate")
+    List<Attendance> findMonthlyAttendanceByUser(@Param("userId") Long userId, @Param("year") int year, @Param("month") int month);
+
+    @Query("SELECT a FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND YEAR(a.attendanceDate) = :year AND MONTH(a.attendanceDate) = :month ORDER BY a.attendanceDate, a.user.fullName")
+    List<Attendance> findMonthlyAttendanceByBranch(@Param("branchId") Long branchId, @Param("year") int year, @Param("month") int month);
+
+    boolean existsByUserIdAndAttendanceDate(Long userId, LocalDate date);
+}

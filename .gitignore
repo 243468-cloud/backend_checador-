@@ -1,0 +1,25 @@
+# ─── Secrets & Environment Files ─────────────────────────────────────────────
+.env
+.env.*
+application-local.yml
+application-prod.yml
+
+# ─── Maven / Build Output ───────────────────────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# ─── IDE / Editor Files ─────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# ─── OS Files ────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
