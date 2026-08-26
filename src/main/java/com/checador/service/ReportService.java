@@ -344,6 +344,7 @@ public class ReportService {
             case MORNING -> "Matutino (7-15)";
             case EVENING -> "Vespertino (15-23)";
             case SUNDAY  -> "Dominical (8-18)";
+            case MIXED   -> "Mixto (11-19)";
         };
     }
 

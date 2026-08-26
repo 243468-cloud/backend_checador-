@@ -114,6 +114,7 @@ public class NotificationService {
             case MORNING -> "Matutino (7:00–15:00)";
             case EVENING -> "Vespertino (15:00–23:00)";
             case SUNDAY  -> "Dominical (8:00–18:00)";
+            case MIXED   -> "Mixto (11:00–19:00)";
         };
     }
 }

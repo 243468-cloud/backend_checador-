@@ -34,6 +34,8 @@ public class AttendanceService {
     private static final LocalTime EVENING_END     = LocalTime.of(23, 0);
     private static final LocalTime SUNDAY_START    = LocalTime.of(8, 0);
     private static final LocalTime SUNDAY_END      = LocalTime.of(18, 0);
+    private static final LocalTime MIXED_START     = LocalTime.of(11, 0);
+    private static final LocalTime MIXED_END       = LocalTime.of(19, 0);
 
     /**
      * Registra la entrada del empleado con validación de geolocalización.
@@ -185,6 +187,7 @@ public class AttendanceService {
             case MORNING -> MORNING_START;
             case EVENING -> EVENING_START;
             case SUNDAY  -> SUNDAY_START;
+            case MIXED   -> MIXED_START;
         };
     }
 
