@@ -296,6 +296,7 @@ public class ReportService {
             case MORNING -> 8.0;
             case EVENING -> 8.0;
             case SUNDAY  -> 10.0;
+            case MIXED   -> 8.0;
         };
     }
 
