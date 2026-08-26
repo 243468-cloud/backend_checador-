@@ -55,8 +55,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/reports/global/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/audit/**").hasRole("SUPERUSER")
 
-                // ── Horarios: solo lectura para EMPLOYEE, escritura solo ADMIN/SUPERUSER ──
-                .requestMatchers(HttpMethod.GET,    "/api/schedules/**").hasAnyRole("ADMIN", "SUPERUSER")
+                // ── Horarios: lectura para EMPLOYEE, ADMIN y SUPERUSER; escritura solo ADMIN/SUPERUSER ──
+                .requestMatchers(HttpMethod.GET,    "/api/schedules/**").hasAnyRole("EMPLOYEE", "ADMIN", "SUPERUSER")
                 .requestMatchers(HttpMethod.POST,   "/api/schedules/**").hasAnyRole("ADMIN", "SUPERUSER")
                 .requestMatchers(HttpMethod.DELETE, "/api/schedules/**").hasAnyRole("ADMIN", "SUPERUSER")
 
