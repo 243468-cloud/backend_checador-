@@ -90,24 +90,25 @@ public class RankingService {
     public RankingResponseDTO calculateRanking() {
         LocalDate today = LocalDate.now();
         YearMonth currentMonth = YearMonth.from(today);
-        LocalDate startOfMonth = currentMonth.atDay(1);
-        LocalDate endOfMonth = currentMonth.atEndOfMonth();
+        int year = currentMonth.getYear();
+        int month = currentMonth.getMonthValue();
 
         // 1. Fetch active employees
         List<User> employees = userRepository.findAll().stream()
                 .filter(u -> u.getRole() == Role.EMPLOYEE && Boolean.TRUE.equals(u.getActive()))
                 .collect(Collectors.toList());
 
-        // 2. Fetch monthly attendance records
-        List<Attendance> monthlyAttendances = attendanceRepository.findByDateBetween(startOfMonth, endOfMonth);
+        // 2. Fetch monthly attendance records from DB
+        List<Attendance> monthlyAttendances = attendanceRepository.findMonthlyAttendanceByBranch(null, year, month);
 
         Map<Long, Integer> attendanceCountMap = new HashMap<>();
         Map<Long, Integer> lateMinutesMap = new HashMap<>();
         Map<Long, Integer> onTimeMap = new HashMap<>();
 
         for (Attendance att : monthlyAttendances) {
-            Long empId = att.getEmployee().getId();
-            if (att.getStatus() != AttendanceStatus.ABSENT && att.getCheckIn() != null) {
+            if (att.getUser() == null) continue;
+            Long empId = att.getUser().getId();
+            if (att.getStatus() != AttendanceStatus.ABSENT && att.getCheckInTime() != null) {
                 attendanceCountMap.put(empId, attendanceCountMap.getOrDefault(empId, 0) + 1);
             }
             if (att.getStatus() == AttendanceStatus.ON_TIME) {
@@ -123,7 +124,7 @@ public class RankingService {
             Long id = emp.getId();
             return EmployeeRankDTO.builder()
                     .id(id)
-                    .name(emp.getFullName() != null ? emp.getFullName() : emp.getUsername())
+                    .name(emp.getFullName() != null && !emp.getFullName().isBlank() ? emp.getFullName() : emp.getUsername())
                     .username(emp.getUsername())
                     .branch(emp.getBranch() != null ? emp.getBranch().getName() : "Vía Gourmet")
                     .shift(emp.getShiftType() != null ? emp.getShiftType().name() : "MATUTINO")
