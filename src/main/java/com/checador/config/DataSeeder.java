@@ -40,20 +40,20 @@ public class DataSeeder implements CommandLineRunner {
             branch = branchRepository.findAll().get(0);
         }
 
-        // Solo crear usuarios demo si no existe el superusuario
-        if (userRepository.existsByUsername("superadmin")) {
-            log.info("Datos de usuario iniciales ya existen.");
+        // Solo crear usuarios demo si no existe el superusuario humberto
+        if (userRepository.existsByUsername("humberto")) {
+            log.info("Superusuario humberto ya existe.");
             return;
         }
 
         log.info("Inicializando usuarios de prueba...");
 
-        // Crear Superusuario
+        // Crear Superusuario Humberto
         userRepository.save(User.builder()
-                .username("superadmin")
-                .password(passwordEncoder.encode("Super@2024"))
-                .fullName("Super Administrador")
-                .email("super@checador.com")
+                .username("humberto")
+                .password(passwordEncoder.encode("Arboledas2016"))
+                .fullName("Humberto")
+                .email("humberto@viagourmet.com")
                 .role(Role.SUPERUSER)
                 .active(true)
                 .build());
