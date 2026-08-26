@@ -88,6 +88,7 @@ public class AttendanceController {
     // ─── Endpoints para ADMIN ─────────────────────────────────────────────────
 
     @GetMapping("/admin/daily")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> getDailyByBranch(@AuthenticationPrincipal User admin,
                                                @RequestParam(required = false)
                                                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
@@ -98,6 +99,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/admin/monthly")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> getMonthlyByBranch(@AuthenticationPrincipal User admin,
                                                   @RequestParam int year,
                                                   @RequestParam int month) {
@@ -107,6 +109,7 @@ public class AttendanceController {
     }
 
     @GetMapping("/admin/stats")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> getDashboardStats(@AuthenticationPrincipal User admin,
                                                 @RequestParam(required = false)
                                                 @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

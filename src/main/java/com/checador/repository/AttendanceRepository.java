@@ -31,22 +31,22 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
     List<Attendance> findByBranchIdAndAttendanceDateBetween(Long branchId, LocalDate from, LocalDate to);
 
-    @Query("SELECT a FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date ORDER BY a.user.fullName")
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date ORDER BY a.user.fullName")
     List<Attendance> findDailyAttendanceByBranch(@Param("branchId") Long branchId, @Param("date") LocalDate date);
 
-    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = 'ON_TIME'")
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND (a.status = com.checador.entity.AttendanceStatus.ON_TIME OR a.status = com.checador.entity.AttendanceStatus.IN_SHIFT)")
     long countOnTimeByBranchAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
 
-    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = 'LATE'")
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = com.checador.entity.AttendanceStatus.LATE")
     long countLateByBranchAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
 
-    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = 'ABSENT'")
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND a.attendanceDate = :date AND a.status = com.checador.entity.AttendanceStatus.ABSENT")
     long countAbsentByBranchAndDate(@Param("branchId") Long branchId, @Param("date") LocalDate date);
 
-    @Query("SELECT a FROM Attendance a WHERE a.user.id = :userId AND YEAR(a.attendanceDate) = :year AND MONTH(a.attendanceDate) = :month ORDER BY a.attendanceDate")
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE a.user.id = :userId AND YEAR(a.attendanceDate) = :year AND MONTH(a.attendanceDate) = :month ORDER BY a.attendanceDate")
     List<Attendance> findMonthlyAttendanceByUser(@Param("userId") Long userId, @Param("year") int year, @Param("month") int month);
 
-    @Query("SELECT a FROM Attendance a WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND YEAR(a.attendanceDate) = :year AND MONTH(a.attendanceDate) = :month ORDER BY a.attendanceDate, a.user.fullName")
+    @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE (:branchId IS NULL OR a.branch.id = :branchId) AND YEAR(a.attendanceDate) = :year AND MONTH(a.attendanceDate) = :month ORDER BY a.attendanceDate, a.user.fullName")
     List<Attendance> findMonthlyAttendanceByBranch(@Param("branchId") Long branchId, @Param("year") int year, @Param("month") int month);
 
     boolean existsByUserIdAndAttendanceDate(Long userId, LocalDate date);
