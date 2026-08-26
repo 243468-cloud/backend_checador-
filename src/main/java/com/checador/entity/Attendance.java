@@ -43,7 +43,7 @@ public class Attendance extends BaseEntity {
     private LocalDate attendanceDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "shift_type", nullable = false)
+    @Column(name = "shift_type", nullable = false, length = 50)
     private ShiftType shiftType;
 
     @Column(name = "check_in_time")

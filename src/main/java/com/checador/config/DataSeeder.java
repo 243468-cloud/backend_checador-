@@ -12,6 +12,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -20,9 +23,19 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(String... args) {
+        // Asegurar que la columna shift_type en la base de datos sea VARCHAR(50) para soportar MIXED
+        try {
+            jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN shift_type VARCHAR(50) NULL");
+            jdbcTemplate.execute("ALTER TABLE attendances MODIFY COLUMN shift_type VARCHAR(50) NULL");
+            jdbcTemplate.execute("ALTER TABLE schedule_rosters MODIFY COLUMN shift_type VARCHAR(50) NULL");
+            log.info("✅ Base de datos actualizada: shift_type ampliado a VARCHAR(50).");
+        } catch (Exception e) {
+            log.info("Aviso al actualizar columnas shift_type: {}", e.getMessage());
+        }
         // Asegurar que exista al menos la sucursal Via Gourmet
         Branch branch;
         if (branchRepository.count() == 0) {

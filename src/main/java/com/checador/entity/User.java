@@ -58,7 +58,7 @@ public class User extends BaseEntity implements UserDetails {
 
     // Para empleados: turno asignado
     @Enumerated(EnumType.STRING)
-    @Column(name = "shift_type")
+    @Column(name = "shift_type", length = 50)
     private ShiftType shiftType;
 
     @Override
