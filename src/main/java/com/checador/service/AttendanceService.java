@@ -134,8 +134,15 @@ public class AttendanceService {
             attendance.setStatus(AttendanceStatus.LATE);
             attendance.setLateMinutes((attendance.getLateMinutes() != null ? attendance.getLateMinutes() : 0) + mins);
             attendance.setNotes("Salida anticipada (" + mins + " min antes de finalizar turno)");
-        } else if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
-            attendance.setStatus(AttendanceStatus.ON_TIME);
+        } else {
+            // Salida a tiempo o con horas extra permitidas por Superadmin (permanencia hasta 2h)
+            if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
+                attendance.setStatus(AttendanceStatus.ON_TIME);
+            }
+            if (nowTime.isAfter(scheduledEnd.plusMinutes(15))) {
+                long extraMins = java.time.Duration.between(scheduledEnd, nowTime).toMinutes();
+                attendance.setNotes("Turno completado con tiempo adicional / Horas extra (" + extraMins + " min)");
+            }
         }
 
         Attendance saved = attendanceRepository.save(attendance);
