@@ -18,6 +18,8 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationRepository notifRepo;
+    private final RealtimeEventService realtimeEventService;
+    private final WebPushService webPushService;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final int MAX_NOTIFS = 50;
@@ -32,19 +34,22 @@ public class NotificationService {
                 ? " (retardo: " + a.getLateMinutes() + " min)"
                 : "";
         String branchName = a.getBranch() != null ? a.getBranch().getName() : "—";
+        Long branchId = a.getBranch() != null ? a.getBranch().getId() : null;
 
         String title = "✅ " + emp.getFullName() + " — Entrada registrada";
         String body  = "Hora de entrada: " + time + late
                 + "\nSucursal: " + branchName
                 + "\nTurno: " + translateShift(a.getShiftType());
 
+        // Emitir evento SSE instantáneo para refrescar tablas de asistencia
+        realtimeEventService.broadcastEvent("CHECK_IN", a, "ADMIN", branchId);
+        realtimeEventService.broadcastEvent("CHECK_IN", a, "SUPERUSER", null);
+
         // Notificar a ADMIN de la sucursal
-        createNotif("ADMIN", a.getBranch() != null ? a.getBranch().getId() : null,
-                NotifType.CHECK_IN, title, body, "🟢");
+        createNotif("ADMIN", branchId, NotifType.CHECK_IN, title, body, "🟢");
 
         // Notificar a SUPERUSER (sin restricción de sucursal → branchId = null)
-        createNotif("SUPERUSER", null,
-                NotifType.CHECK_IN, title, body, "🟢");
+        createNotif("SUPERUSER", null, NotifType.CHECK_IN, title, body, "🟢");
     }
 
     @Transactional
@@ -54,17 +59,19 @@ public class NotificationService {
         String timeOut = a.getCheckOutTime() != null ? a.getCheckOutTime().format(TIME_FMT) : "—";
         String hours   = a.getHoursWorked()  != null ? String.format("%.1f h", a.getHoursWorked()) : "—";
         String branchName = a.getBranch() != null ? a.getBranch().getName() : "—";
+        Long branchId = a.getBranch() != null ? a.getBranch().getId() : null;
 
         String title = "🔴 " + emp.getFullName() + " — Salida registrada";
         String body  = "Entrada: " + timeIn + "  |  Salida: " + timeOut
                 + "\nHoras trabajadas: " + hours
                 + "\nSucursal: " + branchName;
 
-        createNotif("ADMIN", a.getBranch() != null ? a.getBranch().getId() : null,
-                NotifType.CHECK_OUT, title, body, "🔴");
+        // Emitir evento SSE instantáneo
+        realtimeEventService.broadcastEvent("CHECK_OUT", a, "ADMIN", branchId);
+        realtimeEventService.broadcastEvent("CHECK_OUT", a, "SUPERUSER", null);
 
-        createNotif("SUPERUSER", null,
-                NotifType.CHECK_OUT, title, body, "🔴");
+        createNotif("ADMIN", branchId, NotifType.CHECK_OUT, title, body, "🔴");
+        createNotif("SUPERUSER", null, NotifType.CHECK_OUT, title, body, "🔴");
     }
 
     // ─── Consultas ────────────────────────────────────────────────────────────
@@ -82,6 +89,7 @@ public class NotificationService {
     @Transactional
     public void markAllRead(String role, Long branchId) {
         notifRepo.markAllRead(role, branchId);
+        realtimeEventService.broadcastEvent("NOTIFICATIONS_READ", "all", role, branchId);
     }
 
     @Transactional
@@ -90,6 +98,7 @@ public class NotificationService {
             if (!n.isRead()) {
                 n.setReadAt(java.time.LocalDateTime.now());
                 notifRepo.save(n);
+                realtimeEventService.broadcastEvent("NOTIFICATIONS_READ", n.getId(), n.getRecipientRole(), n.getBranchId());
             }
         });
     }
@@ -98,7 +107,7 @@ public class NotificationService {
 
     private void createNotif(String role, Long branchId,
                              NotifType type, String title, String body, String icon) {
-        notifRepo.save(Notification.builder()
+        Notification saved = notifRepo.save(Notification.builder()
                 .recipientRole(role)
                 .branchId(branchId)
                 .type(type)
@@ -106,6 +115,12 @@ public class NotificationService {
                 .body(body)
                 .icon(icon)
                 .build());
+
+        // Emitir a SSE en tiempo real
+        realtimeEventService.broadcastEvent("NOTIFICATION_ADDED", saved, role, branchId);
+
+        // Despachar Push Notification Web para clientes con app cerrada
+        webPushService.sendPushToRole(role, branchId, title, body, icon, "/attendance");
     }
 
     private String translateShift(com.checador.entity.ShiftType s) {
