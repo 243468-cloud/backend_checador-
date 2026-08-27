@@ -172,6 +172,7 @@ public class AttendanceController {
         res.put("status", a.getStatus().name());
         res.put("lateMinutes", a.getLateMinutes() != null ? a.getLateMinutes() : 0);
         res.put("hoursWorked", a.getHoursWorked() != null ? a.getHoursWorked() : 0);
+        res.put("notes", a.getNotes() != null ? a.getNotes() : "");
         return res;
     }
 
