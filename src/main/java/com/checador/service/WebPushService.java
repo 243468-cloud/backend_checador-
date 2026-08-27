@@ -13,16 +13,18 @@ import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import nl.martijndwars.webpush.Subscription;
 import nl.martijndwars.webpush.Utils;
+import org.apache.http.HttpResponse;
+import org.bouncycastle.jce.interfaces.ECPrivateKey;
+import org.bouncycastle.jce.interfaces.ECPublicKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import java.security.spec.ECGenParameterSpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.Security;
-
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.ECPublicKey;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -34,10 +36,6 @@ public class WebPushService {
 
     private final PushSubscriptionRepository pushRepo;
     private final ObjectMapper objectMapper;
-
-    // Default persistent VAPID Keys so browser subscriptions remain valid across server restarts
-    private static final String DEFAULT_PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa_Ib9_Skv6i0y9O8m5K4J3H2G1F0E9D8C7B6A54321_P9O8I7H6F5E4D3C2B1A0";
-    private static final String DEFAULT_PRIVATE_KEY = "xK0y1z2A3B4C5D6E7F8G9H0I1J2K3L4M5N6O7P8Q9R0";
 
     @Value("${app.vapid.public-key:}")
     private String configuredPublicKey;
@@ -62,9 +60,11 @@ public class WebPushService {
             String privKey = (configuredPrivateKey != null && !configuredPrivateKey.isBlank()) ? configuredPrivateKey : null;
 
             if (pubKey == null || privKey == null) {
-                log.info("Using default persistent VAPID KeyPair for Web Push Service");
-                // Generate consistent keypair using BouncyCastle EC if fallback needed
-                KeyPair keyPair = Utils.generateKeyPair();
+                log.info("Generating BouncyCastle EC KeyPair for WebPushService...");
+                KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", "BC");
+                kpg.initialize(new ECGenParameterSpec("prime256v1"));
+                KeyPair keyPair = kpg.generateKeyPair();
+
                 ECPublicKey publicKey = (ECPublicKey) keyPair.getPublic();
                 ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
 
@@ -151,11 +151,10 @@ public class WebPushService {
                     Subscription subscription = new Subscription(subEntity.getEndpoint(), keys);
                     Notification notification = new Notification(subscription, jsonPayload);
 
-                    var response = pushService.send(notification);
-                    int statusCode = 0;
-                    if (response != null && response.getStatusLine() != null) {
-                        statusCode = response.getStatusLine().getStatusCode();
-                    }
+                    HttpResponse response = pushService.send(notification);
+                    int statusCode = (response != null && response.getStatusLine() != null) 
+                            ? response.getStatusLine().getStatusCode() 
+                            : 0;
 
                     log.info("Dispatched VAPID Push to endpoint {}: HTTP {}", subEntity.getEndpoint(), statusCode);
 
