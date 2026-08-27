@@ -61,8 +61,8 @@ public class ShiftReminderScheduler {
                 sendCheckOutReminderIfNotCheckedOut(emp, today, shift, endTime);
             }
 
-            // 3. Unregistered Exit Penalty Check (2 Hours After Shift End Time - Overtime Window)
-            LocalTime unregisteredCheckOutDeadline = endTime.plusHours(2);
+            // 3. Unregistered Exit Penalty Check (6 Hours After Shift End Time - Extended Overtime Window)
+            LocalTime unregisteredCheckOutDeadline = endTime.plusHours(6);
             if (nowTime.equals(unregisteredCheckOutDeadline)) {
                 flagUnregisteredCheckOutAsLate(emp, today, shift);
             }
@@ -106,12 +106,12 @@ public class ShiftReminderScheduler {
             if (att.getCheckInTime() != null && att.getCheckOutTime() == null) {
                 att.setStatus(AttendanceStatus.LATE);
                 att.setLateMinutes((att.getLateMinutes() != null ? att.getLateMinutes() : 0) + 30);
-                att.setNotes("Salida no registrada (Transcurrió la ventana de 2 horas de gracia/horas extra). Marcado automáticamente como Retardo.");
+                att.setNotes("Salida no registrada (Transcurrió la ventana de 6 horas de extensión para horas extra). Marcado automáticamente como Retardo.");
                 attendanceRepository.save(att);
 
                 String title = "⚠️ Salida No Registrada — Marcado con Retardo";
-                String body = "Hola " + emp.getFullName() + ", transcurrieron las 2 horas de gracia tras tu turno " + translateShift(shift) +
-                        " sin registrar SALIDA. Tu registro fue marcado con Retardo.";
+                String body = "Hola " + emp.getFullName() + ", transcurrió el tiempo límite para registrar SALIDA en tu turno " + translateShift(shift) +
+                        ". Tu registro fue marcado con Retardo.";
 
                 saveReminderNotification(emp, title, body, "⚠️");
                 log.info("Unregistered check-out flagged as LATE for employee ID: {} ({})", emp.getId(), emp.getFullName());
