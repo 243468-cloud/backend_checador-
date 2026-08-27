@@ -121,11 +121,13 @@ public class WebPushService {
 
     @Transactional
     public void sendPushToRole(String role, Long branchId, String title, String body, String icon, String targetUrl) {
-        List<PushSubscriptionEntity> subs;
-        if (branchId != null) {
-            subs = pushRepo.findByRoleAndBranchId(role, branchId);
-        } else {
-            subs = pushRepo.findByRole(role);
+        List<PushSubscriptionEntity> subs = pushRepo.findByRole(role);
+        if ("ADMIN".equals(role)) {
+            // Incluir también superusuarios para que reciban notificaciones de todas las sucursales
+            List<PushSubscriptionEntity> superSubs = pushRepo.findByRole("SUPERUSER");
+            java.util.Set<PushSubscriptionEntity> set = new java.util.HashSet<>(subs);
+            set.addAll(superSubs);
+            subs = new java.util.ArrayList<>(set);
         }
 
         PushMessagePayload payload = PushMessagePayload.builder()
@@ -136,6 +138,33 @@ public class WebPushService {
                 .url(targetUrl != null ? targetUrl : "/")
                 .build();
 
+        sendPushNotifications(subs, payload);
+    }
+
+    @Transactional
+    public void sendPushToUser(Long userId, String title, String body, String icon, String targetUrl) {
+        if (userId == null) return;
+        List<PushSubscriptionEntity> subs = pushRepo.findByUserId(userId);
+        PushMessagePayload payload = PushMessagePayload.builder()
+                .title(title)
+                .body(body)
+                .icon(icon != null && !icon.isBlank() ? icon : "/logo.png")
+                .badge("/icons/icon-192x192.png")
+                .url(targetUrl != null ? targetUrl : "/")
+                .build();
+        sendPushNotifications(subs, payload);
+    }
+
+    @Transactional
+    public void sendPushToAll(String title, String body, String icon, String targetUrl) {
+        List<PushSubscriptionEntity> subs = pushRepo.findAll();
+        PushMessagePayload payload = PushMessagePayload.builder()
+                .title(title)
+                .body(body)
+                .icon(icon != null && !icon.isBlank() ? icon : "/logo.png")
+                .badge("/icons/icon-192x192.png")
+                .url(targetUrl != null ? targetUrl : "/")
+                .build();
         sendPushNotifications(subs, payload);
     }
 

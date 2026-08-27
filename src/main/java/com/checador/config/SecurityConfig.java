@@ -61,6 +61,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/schedules/**").hasAnyRole("ADMIN", "SUPERUSER")
 
                 // ── Eventos en Tiempo Real (SSE) y Notificaciones Push Web ─
+                .requestMatchers("/api/push/public-key").permitAll()
                 .requestMatchers("/api/events/**", "/api/push/**").authenticated()
 
                 // ── Notificaciones ────────────────────────────────────────

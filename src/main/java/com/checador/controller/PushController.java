@@ -57,4 +57,26 @@ public class PushController {
         }
         return ResponseEntity.ok(Map.of("message", "Suscripción Push eliminada."));
     }
+
+    @PostMapping("/test")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> sendTestNotification(@AuthenticationPrincipal User user) {
+        if (user != null) {
+            webPushService.sendPushToUser(
+                    user.getId(),
+                    "🔔 Prueba Vía Gourmet",
+                    "¡Las notificaciones Push en segundo plano para " + user.getFullName() + " están funcionando al 100%!",
+                    "/logo.png",
+                    "/attendance"
+            );
+        } else {
+            webPushService.sendPushToAll(
+                    "🔔 Prueba Vía Gourmet",
+                    "Notificación Push global de prueba enviada exitosamente.",
+                    "/logo.png",
+                    "/attendance"
+            );
+        }
+        return ResponseEntity.ok(Map.of("message", "Notificación Push de prueba despachada."));
+    }
 }
