@@ -61,8 +61,8 @@ public class ShiftReminderScheduler {
                 sendCheckOutReminderIfNotCheckedOut(emp, today, shift, endTime);
             }
 
-            // 3. Unregistered Exit Penalty Check (10 Minutes After Shift End Time)
-            LocalTime unregisteredCheckOutDeadline = endTime.plusMinutes(10);
+            // 3. Unregistered Exit Penalty Check (1 Minute After Shift End Time - Zero Tolerance)
+            LocalTime unregisteredCheckOutDeadline = endTime.plusMinutes(1);
             if (nowTime.equals(unregisteredCheckOutDeadline)) {
                 flagUnregisteredCheckOutAsLate(emp, today, shift);
             }
@@ -106,12 +106,12 @@ public class ShiftReminderScheduler {
             if (att.getCheckInTime() != null && att.getCheckOutTime() == null) {
                 att.setStatus(AttendanceStatus.LATE);
                 att.setLateMinutes((att.getLateMinutes() != null ? att.getLateMinutes() : 0) + 30);
-                att.setNotes("Salida no registrada a tiempo (Tolerancia de 10 min superada). Marcado automáticamente como Retardo.");
+                att.setNotes("Salida no registrada a tiempo (Sin tolerancia en salida). Marcado automáticamente como Retardo.");
                 attendanceRepository.save(att);
 
                 String title = "⚠️ Salida No Registrada — Marcado con Retardo";
                 String body = "Hola " + emp.getFullName() + ", no registraste tu SALIDA en el turno " + translateShift(shift) +
-                        " dentro de la tolerancia de 10 minutos. Tu registro fue marcado con Retardo.";
+                        " al finalizar tu jornada. Tu registro fue marcado con Retardo.";
 
                 saveReminderNotification(emp, title, body, "⚠️");
                 log.info("Unregistered check-out flagged as LATE for employee ID: {} ({})", emp.getId(), emp.getFullName());

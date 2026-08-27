@@ -123,17 +123,17 @@ public class AttendanceService {
         attendance.setCheckOutLongitude(lng);
         attendance.calculateHoursWorked();
 
-        // Verificar 10 minutos de tolerancia en salida anticipada
+        // Verificar salida anticipada sin tolerancia (0 minutos de tolerancia en salida)
         ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
         LocalTime scheduledEnd = getShiftEnd(shift);
         LocalTime nowTime = now.toLocalTime();
-        int toleranceMinutes = 10;
 
-        if (nowTime.isBefore(scheduledEnd.minusMinutes(toleranceMinutes))) {
+        if (nowTime.isBefore(scheduledEnd)) {
             int earlyDepartureMinutes = (int) java.time.Duration.between(nowTime, scheduledEnd).toMinutes();
+            int mins = earlyDepartureMinutes > 0 ? earlyDepartureMinutes : 1;
             attendance.setStatus(AttendanceStatus.LATE);
-            attendance.setLateMinutes((attendance.getLateMinutes() != null ? attendance.getLateMinutes() : 0) + earlyDepartureMinutes);
-            attendance.setNotes("Salida anticipada (" + earlyDepartureMinutes + " min antes de finalizar turno)");
+            attendance.setLateMinutes((attendance.getLateMinutes() != null ? attendance.getLateMinutes() : 0) + mins);
+            attendance.setNotes("Salida anticipada (" + mins + " min antes de finalizar turno)");
         } else if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
             attendance.setStatus(AttendanceStatus.ON_TIME);
         }
