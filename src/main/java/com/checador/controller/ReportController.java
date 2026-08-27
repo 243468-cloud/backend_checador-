@@ -84,7 +84,7 @@ public class ReportController {
             map.put("checkOut", a.getCheckOutTime() != null ? a.getCheckOutTime().toString() : "");
             map.put("status", a.getStatus().name());
             map.put("lateMinutes", a.getLateMinutes() != null ? a.getLateMinutes() : 0);
-            map.put("hoursWorked", a.getHoursWorked() != null ? a.getHoursWorked() : 0.0);
+            map.put("hoursWorked", a.getActualHoursWorked());
             return map;
         }).toList());
     }

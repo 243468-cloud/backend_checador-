@@ -83,7 +83,8 @@ public class ReportService {
                 row.createCell(6).setCellValue(a.getLateMinutes() != null ? a.getLateMinutes() : 0);
 
                 Cell hoursCell = row.createCell(7);
-                hoursCell.setCellValue(a.getHoursWorked() != null ? String.format("%.1f h", a.getHoursWorked()) : "—");
+                double actualH = a.getActualHoursWorked();
+                hoursCell.setCellValue(actualH > 0 ? String.format("%.1f h", actualH) : "—");
             }
 
             // Hoja de resumen
@@ -190,7 +191,7 @@ public class ReportService {
                     switch (a.getStatus()) {
                         case ON_TIME, LATE, IN_SHIFT -> {
                             worked++;
-                            double h = a.getHoursWorked() != null ? a.getHoursWorked() : 0;
+                            double h = a.getActualHoursWorked();
                             totalHoursWorked += h;
 
                             double shiftHours = getShiftHours(a.getShiftType());
@@ -272,7 +273,7 @@ public class ReportService {
                             createStatusStyle(wb, IndexedColors.GOLD),
                             createStatusStyle(wb, IndexedColors.ROSE)));
 
-                    double h          = a.getHoursWorked() != null ? a.getHoursWorked() : 0;
+                    double h          = a.getActualHoursWorked();
                     double shiftHours = getShiftHours(a.getShiftType());
                     double extra      = Math.max(0, h - shiftHours);
 

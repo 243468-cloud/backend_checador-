@@ -79,11 +79,17 @@ public class Attendance extends BaseEntity {
     @Column(name = "notes", length = 500)
     private String notes;
 
-    // Para calcular horas trabajadas al hacer check-out
-    public void calculateHoursWorked() {
+    // Retorna las horas reales trabajadas calculadas directamente desde las marcas de entrada y salida
+    public double getActualHoursWorked() {
         if (checkInTime != null && checkOutTime != null) {
             long minutes = java.time.Duration.between(checkInTime, checkOutTime).toMinutes();
-            this.hoursWorked = Math.max(0, Math.round((minutes / 60.0) * 100.0) / 100.0);
+            return Math.max(0.0, Math.round((minutes / 60.0) * 10.0) / 10.0);
         }
+        return hoursWorked != null ? hoursWorked : 0.0;
+    }
+
+    // Para calcular horas trabajadas al hacer check-out
+    public void calculateHoursWorked() {
+        this.hoursWorked = getActualHoursWorked();
     }
 }
