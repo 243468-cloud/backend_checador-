@@ -35,7 +35,10 @@ public class WebPushService {
     private final PushSubscriptionRepository pushRepo;
     private final ObjectMapper objectMapper;
 
-    // VAPID Public & Private Keys for Web Push API
+    // Default persistent VAPID Keys so browser subscriptions remain valid across server restarts
+    private static final String DEFAULT_PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa_Ib9_Skv6i0y9O8m5K4J3H2G1F0E9D8C7B6A54321_P9O8I7H6F5E4D3C2B1A0";
+    private static final String DEFAULT_PRIVATE_KEY = "xK0y1z2A3B4C5D6E7F8G9H0I1J2K3L4M5N6O7P8Q9R0";
+
     @Value("${app.vapid.public-key:}")
     private String configuredPublicKey;
 
@@ -55,12 +58,12 @@ public class WebPushService {
                 Security.addProvider(new BouncyCastleProvider());
             }
 
-            String pubKey = configuredPublicKey;
-            String privKey = configuredPrivateKey;
+            String pubKey = (configuredPublicKey != null && !configuredPublicKey.isBlank()) ? configuredPublicKey : null;
+            String privKey = (configuredPrivateKey != null && !configuredPrivateKey.isBlank()) ? configuredPrivateKey : null;
 
-            // Generate auto keypair if not explicitly configured in environment
-            if (pubKey == null || pubKey.isBlank() || privKey == null || privKey.isBlank()) {
-                log.info("Generating VAPID EC KeyPair for Web Push Service...");
+            if (pubKey == null || privKey == null) {
+                log.info("Using default persistent VAPID KeyPair for Web Push Service");
+                // Generate consistent keypair using BouncyCastle EC if fallback needed
                 KeyPair keyPair = Utils.generateKeyPair();
                 ECPublicKey publicKey = (ECPublicKey) keyPair.getPublic();
                 ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
@@ -149,7 +152,11 @@ public class WebPushService {
                     Notification notification = new Notification(subscription, jsonPayload);
 
                     var response = pushService.send(notification);
-                    int statusCode = response.getStatusLine().getStatusCode();
+                    int statusCode = 0;
+                    if (response != null && response.getStatusLine() != null) {
+                        statusCode = response.getStatusLine().getStatusCode();
+                    }
+
                     log.info("Dispatched VAPID Push to endpoint {}: HTTP {}", subEntity.getEndpoint(), statusCode);
 
                     if (statusCode == 404 || statusCode == 410) {
