@@ -48,8 +48,11 @@ public class RankingService {
         private String branch;
         private String shift;
         private int attendances;
-        private int lateMinutes;
         private int onTimeCount;
+        private int lateCount;
+        private int lateMinutes;
+        private int absentCount;
+        private double score; // 0.0 to 100.0 %
     }
 
     @Data
@@ -102,49 +105,72 @@ public class RankingService {
         List<Attendance> monthlyAttendances = attendanceRepository.findMonthlyAttendanceByBranch(null, year, month);
 
         Map<Long, Integer> attendanceCountMap = new HashMap<>();
-        Map<Long, Integer> lateMinutesMap = new HashMap<>();
         Map<Long, Integer> onTimeMap = new HashMap<>();
+        Map<Long, Integer> lateCountMap = new HashMap<>();
+        Map<Long, Integer> lateMinutesMap = new HashMap<>();
+        Map<Long, Integer> absentCountMap = new HashMap<>();
 
         for (Attendance att : monthlyAttendances) {
             if (att.getUser() == null) continue;
             Long empId = att.getUser().getId();
-            if (att.getStatus() != AttendanceStatus.ABSENT && att.getCheckInTime() != null) {
+
+            if (att.getStatus() == AttendanceStatus.ABSENT) {
+                absentCountMap.put(empId, absentCountMap.getOrDefault(empId, 0) + 1);
+            } else if (att.getCheckInTime() != null) {
                 attendanceCountMap.put(empId, attendanceCountMap.getOrDefault(empId, 0) + 1);
-            }
-            if (att.getStatus() == AttendanceStatus.ON_TIME) {
-                onTimeMap.put(empId, onTimeMap.getOrDefault(empId, 0) + 1);
-            }
-            if (att.getLateMinutes() != null && att.getLateMinutes() > 0) {
-                lateMinutesMap.put(empId, lateMinutesMap.getOrDefault(empId, 0) + att.getLateMinutes());
+                if (att.getStatus() == AttendanceStatus.ON_TIME) {
+                    onTimeMap.put(empId, onTimeMap.getOrDefault(empId, 0) + 1);
+                } else if (att.getStatus() == AttendanceStatus.LATE || (att.getLateMinutes() != null && att.getLateMinutes() > 0)) {
+                    lateCountMap.put(empId, lateCountMap.getOrDefault(empId, 0) + 1);
+                    if (att.getLateMinutes() != null && att.getLateMinutes() > 0) {
+                        lateMinutesMap.put(empId, lateMinutesMap.getOrDefault(empId, 0) + att.getLateMinutes());
+                    }
+                }
             }
         }
 
-        // 3. Build employee rank DTOs
+        // 3. Build employee rank DTOs with 100% reliable evaluation formula
         List<EmployeeRankDTO> allRankings = employees.stream().map(emp -> {
             Long id = emp.getId();
+            int attendances = attendanceCountMap.getOrDefault(id, 0);
+            int onTime = onTimeMap.getOrDefault(id, 0);
+            int lates = lateCountMap.getOrDefault(id, 0);
+            int lateMins = lateMinutesMap.getOrDefault(id, 0);
+            int absents = absentCountMap.getOrDefault(id, 0);
+
+            // Reliable Score Formula (Base 100%, penalties for tardies, late minutes & absences)
+            double penalty = (lates * 4.0) + (absents * 20.0) + (lateMins * 0.1);
+            double score = Math.max(0.0, Math.min(100.0, 100.0 - penalty));
+
             return EmployeeRankDTO.builder()
                     .id(id)
                     .name(emp.getFullName() != null && !emp.getFullName().isBlank() ? emp.getFullName() : emp.getUsername())
                     .username(emp.getUsername())
                     .branch(emp.getBranch() != null ? emp.getBranch().getName() : "Vía Gourmet")
                     .shift(emp.getShiftType() != null ? emp.getShiftType().name() : "MATUTINO")
-                    .attendances(attendanceCountMap.getOrDefault(id, 0))
-                    .lateMinutes(lateMinutesMap.getOrDefault(id, 0))
-                    .onTimeCount(onTimeMap.getOrDefault(id, 0))
+                    .attendances(attendances)
+                    .onTimeCount(onTime)
+                    .lateCount(lates)
+                    .lateMinutes(lateMins)
+                    .absentCount(absents)
+                    .score(Math.round(score * 10.0) / 10.0)
                     .build();
         }).collect(Collectors.toList());
 
-        // 4. Sort Fortnightly (Most attendances, then on-time count)
+        // 4. Sort Fortnightly (Most attendances, highest score, lowest late count)
         List<EmployeeRankDTO> fortnightRank = allRankings.stream()
                 .sorted(Comparator.comparingInt(EmployeeRankDTO::getAttendances).reversed()
-                        .thenComparingInt(EmployeeRankDTO::getOnTimeCount).reversed())
+                        .thenComparingDouble(EmployeeRankDTO::getScore).reversed()
+                        .thenComparingInt(EmployeeRankDTO::getLateCount))
                 .limit(3)
                 .collect(Collectors.toList());
 
-        // 5. Sort Monthly (Lowest late minutes, then attendances)
+        // 5. Sort Monthly (Lowest absents, lowest late count, lowest late minutes, highest score)
         List<EmployeeRankDTO> monthlyRank = allRankings.stream()
-                .sorted(Comparator.comparingInt(EmployeeRankDTO::getLateMinutes)
-                        .thenComparing(Comparator.comparingInt(EmployeeRankDTO::getAttendances).reversed()))
+                .sorted(Comparator.comparingInt(EmployeeRankDTO::getAbsentCount)
+                        .thenComparingInt(EmployeeRankDTO::getLateCount)
+                        .thenComparingInt(EmployeeRankDTO::getLateMinutes)
+                        .thenComparingDouble(EmployeeRankDTO::getScore).reversed())
                 .limit(3)
                 .collect(Collectors.toList());
 
