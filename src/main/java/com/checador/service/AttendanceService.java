@@ -62,9 +62,9 @@ public class AttendanceService {
         LocalDateTime now = LocalDateTime.now();
         ShiftType shift = employee.getShiftType();
         LocalTime scheduledStart = getShiftStart(shift);
-        int toleranceMinutes = branch.getToleranceMinutes();
+        int toleranceMinutes = 10; // Explicit 10-minute tolerance rule as specified by business logic
 
-        // Calcular tardanza
+        // Calcular tardanza de entrada con 10 minutos de tolerancia
         LocalTime nowTime = now.toLocalTime();
         int lateMinutes = 0;
         AttendanceStatus status = AttendanceStatus.ON_TIME;
@@ -93,13 +93,13 @@ public class AttendanceService {
 
     /**
      * Registra la salida del empleado con validación de geolocalización.
-     * Funciona desde cualquier dispositivo donde el empleado inicie sesión.
+     * Aplica 10 minutos de tolerancia y penalización por salida anticipada o incompleta.
      */
     @Transactional
     public Attendance checkOut(User employee, Branch branch, double lat, double lng) {
         LocalDate today = LocalDate.now();
 
-        // Buscar el turno activo sin cerrar (independientemente del dispositivo usado)
+        // Buscar el turno activo sin cerrar
         Attendance attendance = attendanceRepository
                 .findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(employee.getId())
                 .orElseGet(() -> attendanceRepository
@@ -114,16 +114,27 @@ public class AttendanceService {
             throw new IllegalStateException("Ya registraste tu salida para este turno.");
         }
 
-        // Validar geolocalización física del dispositivo actual al marcar salida
+        // Validar geolocalización física
         validateLocation(branch, lat, lng);
 
-        attendance.setCheckOutTime(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        attendance.setCheckOutTime(now);
         attendance.setCheckOutLatitude(lat);
         attendance.setCheckOutLongitude(lng);
         attendance.calculateHoursWorked();
 
-        // Actualizar estado si era IN_SHIFT
-        if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
+        // Verificar 10 minutos de tolerancia en salida anticipada
+        ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
+        LocalTime scheduledEnd = getShiftEnd(shift);
+        LocalTime nowTime = now.toLocalTime();
+        int toleranceMinutes = 10;
+
+        if (nowTime.isBefore(scheduledEnd.minusMinutes(toleranceMinutes))) {
+            int earlyDepartureMinutes = (int) java.time.Duration.between(nowTime, scheduledEnd).toMinutes();
+            attendance.setStatus(AttendanceStatus.LATE);
+            attendance.setLateMinutes((attendance.getLateMinutes() != null ? attendance.getLateMinutes() : 0) + earlyDepartureMinutes);
+            attendance.setNotes("Salida anticipada (" + earlyDepartureMinutes + " min antes de finalizar turno)");
+        } else if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
             attendance.setStatus(AttendanceStatus.ON_TIME);
         }
 
@@ -206,12 +217,23 @@ public class AttendanceService {
         }
     }
 
-    private LocalTime getShiftStart(ShiftType shift) {
+    public LocalTime getShiftStart(ShiftType shift) {
+        if (shift == null) return MORNING_START;
         return switch (shift) {
             case MORNING -> MORNING_START;
             case EVENING -> EVENING_START;
             case SUNDAY  -> SUNDAY_START;
             case MIXED   -> MIXED_START;
+        };
+    }
+
+    public LocalTime getShiftEnd(ShiftType shift) {
+        if (shift == null) return MORNING_END;
+        return switch (shift) {
+            case MORNING -> MORNING_END;
+            case EVENING -> EVENING_END;
+            case SUNDAY  -> SUNDAY_END;
+            case MIXED   -> MIXED_END;
         };
     }
 
