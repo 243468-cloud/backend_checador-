@@ -5,6 +5,7 @@ import com.checador.entity.Notification;
 import com.checador.entity.Notification.NotifType;
 import com.checador.entity.User;
 import com.checador.repository.NotificationRepository;
+import com.checador.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationRepository notifRepo;
+    private final UserRepository userRepo;
     private final RealtimeEventService realtimeEventService;
     private final WebPushService webPushService;
 
@@ -76,10 +78,11 @@ public class NotificationService {
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void notifySecurityAlert(User employee, String details) {
-        String empName = employee != null ? employee.getFullName() : "Empleado";
-        String username = employee != null ? employee.getUsername() : "desconocido";
-        Long branchId = (employee != null && employee.getBranch() != null) ? employee.getBranch().getId() : null;
-        String branchName = (employee != null && employee.getBranch() != null) ? employee.getBranch().getName() : "Todas";
+        User freshUser = employee != null ? userRepo.findById(employee.getId()).orElse(employee) : null;
+        String empName = freshUser != null ? freshUser.getFullName() : "Empleado";
+        String username = freshUser != null ? freshUser.getUsername() : "desconocido";
+        Long branchId = (freshUser != null && freshUser.getBranch() != null) ? freshUser.getBranch().getId() : null;
+        String branchName = (freshUser != null && freshUser.getBranch() != null) ? freshUser.getBranch().getName() : "Todas";
         String time = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Mexico_City")).format(TIME_FMT);
 
         String title = "🚨 ALERTA DE SEGURIDAD: " + empName;
