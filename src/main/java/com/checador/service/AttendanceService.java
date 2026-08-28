@@ -37,12 +37,14 @@ public class AttendanceService {
     private static final LocalTime MIXED_START     = LocalTime.of(11, 0);
     private static final LocalTime MIXED_END       = LocalTime.of(19, 0);
 
+    private static final java.time.ZoneId MEXICO_ZONE = java.time.ZoneId.of("America/Mexico_City");
+
     /**
      * Registra la entrada del empleado con validación de geolocalización.
      */
     @Transactional
     public Attendance checkIn(User employee, Branch branch, double lat, double lng) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(MEXICO_ZONE);
 
         // 1. Verificar si ya tiene un turno activo sin cerrar
         Optional<Attendance> activeOpt = attendanceRepository
@@ -59,7 +61,7 @@ public class AttendanceService {
         // Validar geolocalización
         validateLocation(branch, lat, lng);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = employee.getShiftType();
         LocalTime scheduledStart = getShiftStart(shift);
         int toleranceMinutes = 10; // Explicit 10-minute tolerance rule as specified by business logic
@@ -97,7 +99,7 @@ public class AttendanceService {
      */
     @Transactional
     public Attendance checkOut(User employee, Branch branch, double lat, double lng) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(MEXICO_ZONE);
 
         // Buscar el turno activo sin cerrar
         Attendance attendance = attendanceRepository
@@ -117,7 +119,7 @@ public class AttendanceService {
         // Validar geolocalización física
         validateLocation(branch, lat, lng);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         attendance.setCheckOutTime(now);
         attendance.setCheckOutLatitude(lat);
         attendance.setCheckOutLongitude(lng);
@@ -162,7 +164,7 @@ public class AttendanceService {
             return active;
         }
         // 2. Si no hay turno abierto, retornar el registro de hoy
-        return attendanceRepository.findByUserIdAndAttendanceDate(userId, LocalDate.now());
+        return attendanceRepository.findByUserIdAndAttendanceDate(userId, LocalDate.now(MEXICO_ZONE));
     }
 
     /**

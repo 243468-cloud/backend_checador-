@@ -96,7 +96,7 @@ public class NotificationService {
     public void markOneRead(Long id) {
         notifRepo.findById(id).ifPresent(n -> {
             if (!n.isRead()) {
-                n.setReadAt(java.time.LocalDateTime.now());
+                n.setReadAt(java.time.LocalDateTime.now(java.time.ZoneId.of("America/Mexico_City")));
                 notifRepo.save(n);
                 realtimeEventService.broadcastEvent("NOTIFICATIONS_READ", n.getId(), n.getRecipientRole(), n.getBranchId());
             }

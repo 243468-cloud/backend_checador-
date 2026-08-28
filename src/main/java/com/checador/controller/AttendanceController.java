@@ -87,12 +87,14 @@ public class AttendanceController {
 
     // ─── Endpoints para ADMIN ─────────────────────────────────────────────────
 
+    private static final java.time.ZoneId MEXICO_ZONE = java.time.ZoneId.of("America/Mexico_City");
+
     @GetMapping("/admin/daily")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> getDailyByBranch(@AuthenticationPrincipal User admin,
                                                @RequestParam(required = false)
                                                @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        LocalDate target = date != null ? date : LocalDate.now();
+        LocalDate target = date != null ? date : LocalDate.now(MEXICO_ZONE);
         Long branchId = admin.getBranch() != null ? admin.getBranch().getId() : null;
         List<Attendance> records = attendanceService.getDailyAttendanceByBranch(branchId, target);
         return ResponseEntity.ok(records.stream().map(this::toResponse).toList());
@@ -113,7 +115,7 @@ public class AttendanceController {
     public ResponseEntity<?> getDashboardStats(@AuthenticationPrincipal User admin,
                                                 @RequestParam(required = false)
                                                 @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        LocalDate target = date != null ? date : LocalDate.now();
+        LocalDate target = date != null ? date : LocalDate.now(MEXICO_ZONE);
         Long branchId = admin.getBranch() != null ? admin.getBranch().getId() : null;
         AttendanceService.DashboardStats stats = attendanceService.getDashboardStats(branchId, target);
         Map<String, Object> res = new java.util.HashMap<>();

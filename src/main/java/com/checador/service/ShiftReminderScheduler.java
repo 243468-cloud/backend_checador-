@@ -33,8 +33,9 @@ public class ShiftReminderScheduler {
     @Scheduled(cron = "0 * * * * *")
     @Transactional
     public void processShiftReminders() {
-        LocalDate today = LocalDate.now();
-        LocalTime nowTime = LocalTime.now().withSecond(0).withNano(0);
+        java.time.ZoneId mxZone = java.time.ZoneId.of("America/Mexico_City");
+        LocalDate today = LocalDate.now(mxZone);
+        LocalTime nowTime = LocalTime.now(mxZone).withSecond(0).withNano(0);
 
         List<User> activeEmployees = userRepository.findAll().stream()
                 .filter(u -> u.getRole() == Role.EMPLOYEE && Boolean.TRUE.equals(u.getActive()))

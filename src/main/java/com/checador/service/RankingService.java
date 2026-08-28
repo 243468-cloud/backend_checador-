@@ -91,7 +91,7 @@ public class RankingService {
 
     @Transactional(readOnly = true)
     public RankingResponseDTO calculateRanking() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
         YearMonth currentMonth = YearMonth.from(today);
         int year = currentMonth.getYear();
         int month = currentMonth.getMonthValue();
