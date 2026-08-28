@@ -32,7 +32,7 @@ public class DataSeeder implements CommandLineRunner {
             jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN shift_type VARCHAR(50) NULL");
             jdbcTemplate.execute("ALTER TABLE attendances MODIFY COLUMN shift_type VARCHAR(50) NULL");
             jdbcTemplate.execute("ALTER TABLE schedule_rosters MODIFY COLUMN shift_type VARCHAR(50) NULL");
-            log.info("✅ Base de datos actualizada: shift_type ampliado a VARCHAR(50).");
+            log.info(" Base de datos actualizada: shift_type ampliado a VARCHAR(50).");
         } catch (Exception e) {
             log.info("Aviso al actualizar columnas shift_type: {}", e.getMessage());
         }
@@ -48,7 +48,7 @@ public class DataSeeder implements CommandLineRunner {
                     .toleranceMinutes(10)
                     .active(true)
                     .build());
-            log.info("✅ Sucursal Via Gourmet creada automáticamente.");
+            log.info(" Sucursal Via Gourmet creada automáticamente.");
         } else {
             branch = branchRepository.findAll().get(0);
             if (branch.getRadiusMeters() < 500) {
@@ -120,8 +120,8 @@ public class DataSeeder implements CommandLineRunner {
                 .active(true)
                 .build());
 
-        log.info("✅ Datos de prueba creados exitosamente.");
-        log.info("ℹ️  Usuarios demo creados: superadmin, admin1, empleado1, empleado2, empleado3");
-        log.info("⚠️  Consulta el archivo .env.example para conocer las contraseñas de demo.");
+        log.info(" Datos de prueba creados exitosamente.");
+        log.info(" Usuarios demo creados: superadmin, admin1, empleado1, empleado2, empleado3");
+        log.info("  Consulta el archivo .env.example para conocer las contraseñas de demo.");
     }
 }

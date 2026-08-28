@@ -27,7 +27,11 @@ public class ReportService {
      */
     public byte[] generateExcelReport(List<Attendance> records, String branchName, int month, int year) throws IOException {
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
-            Sheet sheet = wb.createSheet("Asistencia " + month + "-" + year);
+            // 1. Hoja de Resumen (primera)
+            addSummarySheet(wb, records, branchName, month, year);
+
+            // 2. Hoja de Asistencia General
+            Sheet sheet = wb.createSheet("Asistencia General");
 
             // Estilos
             CellStyle titleStyle = createTitleStyle(wb);
@@ -87,8 +91,72 @@ public class ReportService {
                 hoursCell.setCellValue(actualH > 0 ? String.format("%.1f h", actualH) : "—");
             }
 
-            // Hoja de resumen
-            addSummarySheet(wb, records, branchName, month, year);
+            // 3. Hojas de detalle individuales por empleado
+            java.util.Map<Long, User> empMap = new java.util.LinkedHashMap<>();
+            java.util.Map<Long, List<Attendance>> byEmp = new java.util.LinkedHashMap<>();
+            for (Attendance a : records) {
+                if (a.getUser() == null) continue;
+                long uid = a.getUser().getId();
+                empMap.putIfAbsent(uid, a.getUser());
+                byEmp.computeIfAbsent(uid, k -> new java.util.ArrayList<>()).add(a);
+            }
+
+            for (java.util.Map.Entry<Long, List<Attendance>> entry : byEmp.entrySet()) {
+                User emp = empMap.get(entry.getKey());
+                String fullName = (emp != null && emp.getFullName() != null && !emp.getFullName().isBlank())
+                                        ? emp.getFullName() : "Empleado " + entry.getKey();
+                List<Attendance> list = entry.getValue();
+
+                String safeBase = org.apache.poi.ss.util.WorkbookUtil.createSafeSheetName(fullName);
+                String safeSheetName = safeBase;
+                int sheetCounter = 1;
+                while (wb.getSheet(safeSheetName) != null) {
+                    String suffix = " (" + sheetCounter + ")";
+                    int maxLen = 31 - suffix.length();
+                    String truncated = safeBase.length() > maxLen ? safeBase.substring(0, maxLen) : safeBase;
+                    safeSheetName = org.apache.poi.ss.util.WorkbookUtil.createSafeSheetName(truncated + suffix);
+                    sheetCounter++;
+                }
+                Sheet detail = wb.createSheet(safeSheetName);
+
+                // Título
+                Row dt = detail.createRow(0);
+                Cell dtc = dt.createCell(0);
+                dtc.setCellValue("Asistencia — " + fullName);
+                dtc.setCellStyle(titleStyle);
+                detail.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
+
+                // Encabezados
+                Row dh = detail.createRow(2);
+                String[] dCols = {"Fecha", "Turno", "Entrada", "Salida", "Estado", "Tardanza (min)", "Horas trabajadas"};
+                for (int i = 0; i < dCols.length; i++) {
+                    Cell c = dh.createCell(i);
+                    c.setCellValue(dCols[i]);
+                    c.setCellStyle(headerStyle);
+                    detail.setColumnWidth(i, 4800);
+                }
+
+                // Datos
+                int dr = 3;
+                for (Attendance a : list.stream().sorted(
+                        java.util.Comparator.comparing(Attendance::getAttendanceDate)).toList()) {
+                    Row row = detail.createRow(dr++);
+                    row.createCell(0).setCellValue(a.getAttendanceDate().format(DATE_FMT));
+                    row.createCell(1).setCellValue(translateShift(a.getShiftType()));
+                    row.createCell(2).setCellValue(a.getCheckInTime() != null ? a.getCheckInTime().format(TIME_FMT) : "—");
+                    row.createCell(3).setCellValue(a.getCheckOutTime() != null ? a.getCheckOutTime().format(TIME_FMT) : "—");
+
+                    Cell sc = row.createCell(4);
+                    sc.setCellValue(translateStatus(a.getStatus()));
+                    sc.setCellStyle(getStatusStyle(a.getStatus(), onTimeStyle, lateStyle, absentStyle));
+
+                    row.createCell(5).setCellValue(a.getLateMinutes() != null ? a.getLateMinutes() : 0);
+
+                    Cell hoursCell = row.createCell(6);
+                    double actualH = a.getActualHoursWorked();
+                    hoursCell.setCellValue(actualH > 0 ? String.format("%.1f h", actualH) : "—");
+                }
+            }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             wb.write(out);
