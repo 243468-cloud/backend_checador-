@@ -145,6 +145,7 @@ public class ReportService {
             Map<Long, List<Attendance>> byEmp     = new java.util.LinkedHashMap<>();
 
             for (Attendance a : records) {
+                if (a.getUser() == null) continue;
                 long uid = a.getUser().getId();
                 empMap.putIfAbsent(uid, a.getUser());
                 byEmp.computeIfAbsent(uid, k -> new java.util.ArrayList<>()).add(a);
@@ -177,7 +178,9 @@ public class ReportService {
 
             int globalRow = 3;
             for (Map.Entry<Long, List<Attendance>> entry : byEmp.entrySet()) {
-                User emp          = empMap.get(entry.getKey());
+                User emp              = empMap.get(entry.getKey());
+                String fullName       = (emp != null && emp.getFullName() != null && !emp.getFullName().isBlank())
+                                        ? emp.getFullName() : "Empleado " + entry.getKey();
                 List<Attendance> list = entry.getValue();
 
                 double ordinaryHours = 0;
@@ -207,7 +210,7 @@ public class ReportService {
                 }
 
                 Row gr = global.createRow(globalRow++);
-                gr.createCell(0).setCellValue(emp.getFullName());
+                gr.createCell(0).setCellValue(fullName);
                 gr.createCell(1).setCellValue(worked);
 
                 Cell ordC = gr.createCell(2);
@@ -237,15 +240,22 @@ public class ReportService {
                 if (extraHours > 5) obs.append("★ Horas extra significativas. ");
                 gr.createCell(7).setCellValue(obs.toString().trim());
 
-                // ── Hoja de detalle por empleado ─────────────────────────
-                String sheetName = emp.getFullName().length() > 28
-                        ? emp.getFullName().substring(0, 28)
-                        : emp.getFullName();
-                Sheet detail = wb.createSheet(sheetName);
+                // ── Hoja de detalle por empleado (nombre seguro e único) ─────────
+                String safeBase = org.apache.poi.ss.util.WorkbookUtil.createSafeSheetName(fullName);
+                String safeSheetName = safeBase;
+                int sheetCounter = 1;
+                while (wb.getSheet(safeSheetName) != null) {
+                    String suffix = " (" + sheetCounter + ")";
+                    int maxLen = 31 - suffix.length();
+                    String truncated = safeBase.length() > maxLen ? safeBase.substring(0, maxLen) : safeBase;
+                    safeSheetName = org.apache.poi.ss.util.WorkbookUtil.createSafeSheetName(truncated + suffix);
+                    sheetCounter++;
+                }
+                Sheet detail = wb.createSheet(safeSheetName);
 
                 Row dt = detail.createRow(0);
                 Cell dtc = dt.createCell(0);
-                dtc.setCellValue("Detalle — " + emp.getFullName());
+                dtc.setCellValue("Detalle — " + fullName);
                 dtc.setCellStyle(titleStyle);
                 detail.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
 
