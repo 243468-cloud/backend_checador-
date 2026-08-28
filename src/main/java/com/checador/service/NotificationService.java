@@ -74,7 +74,7 @@ public class NotificationService {
         createNotif("SUPERUSER", null, NotifType.CHECK_OUT, title, body, "🔴");
     }
 
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void notifySecurityAlert(User employee, String details) {
         String empName = employee != null ? employee.getFullName() : "Empleado";
         String username = employee != null ? employee.getUsername() : "desconocido";

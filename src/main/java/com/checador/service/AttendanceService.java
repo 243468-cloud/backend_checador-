@@ -59,7 +59,16 @@ public class AttendanceService {
         }
 
         // Validar geolocalización
-        validateLocation(branch, lat, lng);
+        try {
+            validateLocation(branch, lat, lng);
+        } catch (IllegalStateException e) {
+            double distance = geoService.calculateDistance(
+                    branch.getLatitude(), branch.getLongitude(), lat, lng);
+            String details = String.format("intentó registrar ENTRADA fuera del local (Distancia: %.0fm, Permitido: %dm)",
+                    distance, branch.getRadiusMeters());
+            notificationService.notifySecurityAlert(employee, details);
+            throw e;
+        }
 
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = employee.getShiftType();
@@ -117,7 +126,16 @@ public class AttendanceService {
         }
 
         // Validar geolocalización física
-        validateLocation(branch, lat, lng);
+        try {
+            validateLocation(branch, lat, lng);
+        } catch (IllegalStateException e) {
+            double distance = geoService.calculateDistance(
+                    branch.getLatitude(), branch.getLongitude(), lat, lng);
+            String details = String.format("intentó registrar SALIDA fuera del local (Distancia: %.0fm, Permitido: %dm)",
+                    distance, branch.getRadiusMeters());
+            notificationService.notifySecurityAlert(employee, details);
+            throw e;
+        }
 
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
