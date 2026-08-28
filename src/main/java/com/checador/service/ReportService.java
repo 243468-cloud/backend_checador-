@@ -198,8 +198,7 @@ public class ReportService {
                             double shiftHours = getShiftHours(a.getShiftType());
 
                             double ordinary = Math.min(h, shiftHours);
-                            double rawExtra = Math.max(0.0, h - shiftHours);
-                            double extra    = Math.min(rawExtra, 6.0);
+                            double extra    = a.getEffectiveExtraHours(shiftHours);
 
                             ordinaryHours += ordinary;
                             extraHours    += extra;

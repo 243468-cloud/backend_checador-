@@ -132,7 +132,7 @@ public class AttendanceController {
                                                @RequestBody UpdateRequest req) {
         try {
             Attendance a = attendanceService.updateAttendance(
-                    id, req.checkInTime(), req.checkOutTime(), req.status(), req.notes(), req.lateMinutes());
+                    id, req.checkInTime(), req.checkOutTime(), req.status(), req.notes(), req.lateMinutes(), req.extraHours());
             return ResponseEntity.ok(toResponse(a));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -194,11 +194,13 @@ public class AttendanceController {
         res.put("status", a.getStatus().name());
         res.put("lateMinutes", a.getLateMinutes() != null ? a.getLateMinutes() : 0);
         res.put("hoursWorked", a.getHoursWorked() != null ? a.getHoursWorked() : 0);
+        double shiftHours = a.getShiftType() != null ? (a.getShiftType() == com.checador.entity.ShiftType.SUNDAY ? 10.0 : 8.0) : 8.0;
+        res.put("extraHours", a.getEffectiveExtraHours(shiftHours));
         res.put("notes", a.getNotes() != null ? a.getNotes() : "");
         return res;
     }
 
     public record CheckRequest(@NotNull Double latitude, @NotNull Double longitude) {}
     public record UpdateRequest(LocalDateTime checkInTime, LocalDateTime checkOutTime,
-                                AttendanceStatus status, String notes, Integer lateMinutes) {}
+                                AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {}
 }

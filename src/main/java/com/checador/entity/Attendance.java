@@ -76,6 +76,9 @@ public class Attendance extends BaseEntity {
     @Column(name = "hours_worked", columnDefinition = "DECIMAL(5,2)")
     private Double hoursWorked;
 
+    @Column(name = "extra_hours", columnDefinition = "DECIMAL(5,2)")
+    private Double extraHours;
+
     @Column(name = "notes", length = 500)
     private String notes;
 
@@ -92,5 +95,15 @@ public class Attendance extends BaseEntity {
     // Para calcular horas trabajadas al hacer check-out
     public void calculateHoursWorked() {
         this.hoursWorked = getActualHoursWorked();
+    }
+
+    // Retorna las horas extra efectivas (manuales asignadas por admin o calculadas automáticamente por check-out en ubicación)
+    public double getEffectiveExtraHours(double shiftHours) {
+        if (extraHours != null && extraHours >= 0) {
+            return extraHours;
+        }
+        double h = getActualHoursWorked();
+        double rawExtra = Math.max(0.0, h - shiftHours);
+        return Math.min(rawExtra, 6.0);
     }
 }

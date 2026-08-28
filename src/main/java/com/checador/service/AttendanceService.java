@@ -158,6 +158,7 @@ public class AttendanceService {
                 if (nowTime.isAfter(scheduledEnd.plusMinutes(15))) {
                     long extraMins = java.time.Duration.between(scheduledEnd, nowTime).toMinutes();
                     double extraHours = extraMins / 60.0;
+                    attendance.setExtraHours(Math.min(extraHours, 6.0));
                     attendance.setNotes(String.format("Turno completado con tiempo adicional / Horas extra (+%d min / %.1f hrs)", extraMins, extraHours));
                 }
             }
@@ -218,7 +219,7 @@ public class AttendanceService {
      */
     @Transactional
     public Attendance updateAttendance(Long id, LocalDateTime checkIn, LocalDateTime checkOut,
-                                       AttendanceStatus status, String notes, Integer lateMinutes) {
+                                       AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {
         Attendance a = attendanceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Registro no encontrado"));
         if (checkIn != null) a.setCheckInTime(checkIn);
@@ -226,6 +227,7 @@ public class AttendanceService {
         if (status != null) a.setStatus(status);
         if (notes != null) a.setNotes(notes);
         if (lateMinutes != null) a.setLateMinutes(lateMinutes);
+        if (extraHours != null) a.setExtraHours(extraHours);
         a.calculateHoursWorked();
         return attendanceRepository.save(a);
     }
