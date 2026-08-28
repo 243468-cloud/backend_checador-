@@ -180,25 +180,26 @@ public class ReportService {
                 User emp          = empMap.get(entry.getKey());
                 List<Attendance> list = entry.getValue();
 
-                double totalHoursWorked = 0;
-                double extraHours       = 0;
-                int tardyMinutes        = 0;
-                int absUnj              = 0;
-                int absJus              = 0;
-                int worked              = 0;
+                double ordinaryHours = 0;
+                double extraHours    = 0;
+                int tardyMinutes     = 0;
+                int absUnj           = 0;
+                int absJus           = 0;
+                int worked           = 0;
 
                 for (Attendance a : list) {
                     switch (a.getStatus()) {
                         case ON_TIME, LATE, IN_SHIFT -> {
                             worked++;
                             double h = a.getActualHoursWorked();
-                            totalHoursWorked += h;
-
                             double shiftHours = getShiftHours(a.getShiftType());
-                            if (h > shiftHours) {
-                                extraHours += (h - shiftHours);
-                            }
-                            tardyMinutes += a.getLateMinutes() != null ? a.getLateMinutes() : 0;
+
+                            double ordinary = Math.min(h, shiftHours);
+                            double extra    = Math.max(0.0, h - shiftHours);
+
+                            ordinaryHours += ordinary;
+                            extraHours    += extra;
+                            tardyMinutes  += a.getLateMinutes() != null ? a.getLateMinutes() : 0;
                         }
                         case ABSENT   -> absUnj++;
                         case EXCUSED  -> absJus++;
@@ -210,7 +211,7 @@ public class ReportService {
                 gr.createCell(1).setCellValue(worked);
 
                 Cell ordC = gr.createCell(2);
-                ordC.setCellValue(Math.round(totalHoursWorked * 10.0) / 10.0);
+                ordC.setCellValue(Math.round(ordinaryHours * 10.0) / 10.0);
                 ordC.setCellStyle(numStyle);
 
                 Cell extC = gr.createCell(3);
@@ -249,7 +250,7 @@ public class ReportService {
                 detail.addMergedRegion(new CellRangeAddress(0, 0, 0, 6));
 
                 Row dh = detail.createRow(2);
-                String[] dCols = {"Fecha", "Entrada", "Salida", "Estado", "Hrs Trabajadas", "Hrs Extra", "Min. Retardo"};
+                String[] dCols = {"Fecha", "Entrada", "Salida", "Estado", "Hrs Ordinarias", "Hrs Extra", "Min. Retardo"};
                 for (int i = 0; i < dCols.length; i++) {
                     Cell c = dh.createCell(i);
                     c.setCellValue(dCols[i]);
@@ -275,9 +276,10 @@ public class ReportService {
 
                     double h          = a.getActualHoursWorked();
                     double shiftHours = getShiftHours(a.getShiftType());
+                    double ordinary   = Math.min(h, shiftHours);
                     double extra      = Math.max(0, h - shiftHours);
 
-                    row.createCell(4).setCellValue(Math.round(h * 10.0) / 10.0);
+                    row.createCell(4).setCellValue(Math.round(ordinary * 10.0) / 10.0);
                     row.createCell(5).setCellValue(Math.round(extra * 10.0) / 10.0);
                     row.createCell(6).setCellValue(a.getLateMinutes() != null ? a.getLateMinutes() : 0);
                 }
