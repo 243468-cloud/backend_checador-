@@ -79,13 +79,14 @@ public class Attendance extends BaseEntity {
     @Column(name = "notes", length = 500)
     private String notes;
 
-    // Retorna las horas reales trabajadas calculadas directamente desde las marcas de entrada y salida
+    // Retorna las horas reales trabajadas calculadas directamente desde las marcas de entrada y salida (máximo 14h por turno)
     public double getActualHoursWorked() {
         if (checkInTime != null && checkOutTime != null) {
             long minutes = java.time.Duration.between(checkInTime, checkOutTime).toMinutes();
-            return Math.max(0.0, Math.round((minutes / 60.0) * 10.0) / 10.0);
+            double hours = Math.max(0.0, Math.round((minutes / 60.0) * 10.0) / 10.0);
+            return Math.min(hours, 14.0);
         }
-        return hoursWorked != null ? hoursWorked : 0.0;
+        return hoursWorked != null ? Math.min(hoursWorked, 14.0) : 0.0;
     }
 
     // Para calcular horas trabajadas al hacer check-out

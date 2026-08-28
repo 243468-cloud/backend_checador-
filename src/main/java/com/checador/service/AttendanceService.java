@@ -120,31 +120,46 @@ public class AttendanceService {
         validateLocation(branch, lat, lng);
 
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
-        attendance.setCheckOutTime(now);
-        attendance.setCheckOutLatitude(lat);
-        attendance.setCheckOutLongitude(lng);
-        attendance.calculateHoursWorked();
-
-        // Verificar salida anticipada sin tolerancia (0 minutos de tolerancia en salida)
         ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
         LocalTime scheduledEnd = getShiftEnd(shift);
-        LocalTime nowTime = now.toLocalTime();
 
-        if (nowTime.isBefore(scheduledEnd)) {
-            int earlyDepartureMinutes = (int) java.time.Duration.between(nowTime, scheduledEnd).toMinutes();
-            int mins = earlyDepartureMinutes > 0 ? earlyDepartureMinutes : 1;
-            attendance.setStatus(AttendanceStatus.LATE);
-            attendance.setLateMinutes((attendance.getLateMinutes() != null ? attendance.getLateMinutes() : 0) + mins);
-            attendance.setNotes("Salida anticipada (" + mins + " min antes de finalizar turno)");
-        } else {
-            // Salida a tiempo o con horas extra (soporta turnos dobles / horas extra extendidas 3h, 4h, 5h, 6h+)
+        long elapsedHours = java.time.Duration.between(attendance.getCheckInTime(), now).toHours();
+        if (elapsedHours >= 16) {
+            // Auto-cerrar el turno a la hora oficial de salida para evitar jornadas infladas de 24h+ por olvido de salida
+            LocalDateTime autoCheckOut = attendance.getCheckInTime().toLocalDate().atTime(scheduledEnd);
+            if (autoCheckOut.isBefore(attendance.getCheckInTime())) {
+                autoCheckOut = autoCheckOut.plusDays(1);
+            }
+            attendance.setCheckOutTime(autoCheckOut);
+            attendance.setCheckOutLatitude(lat);
+            attendance.setCheckOutLongitude(lng);
+            attendance.calculateHoursWorked();
             if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
                 attendance.setStatus(AttendanceStatus.ON_TIME);
             }
-            if (nowTime.isAfter(scheduledEnd.plusMinutes(15))) {
-                long extraMins = java.time.Duration.between(scheduledEnd, nowTime).toMinutes();
-                double extraHours = extraMins / 60.0;
-                attendance.setNotes(String.format("Turno completado con tiempo adicional / Horas extra (+%d min / %.1f hrs)", extraMins, extraHours));
+            attendance.setNotes("Salida no registrada a tiempo (Cierre automático de turno)");
+        } else {
+            attendance.setCheckOutTime(now);
+            attendance.setCheckOutLatitude(lat);
+            attendance.setCheckOutLongitude(lng);
+            attendance.calculateHoursWorked();
+
+            LocalTime nowTime = now.toLocalTime();
+            if (nowTime.isBefore(scheduledEnd)) {
+                int earlyDepartureMinutes = (int) java.time.Duration.between(nowTime, scheduledEnd).toMinutes();
+                int mins = earlyDepartureMinutes > 0 ? earlyDepartureMinutes : 1;
+                attendance.setStatus(AttendanceStatus.LATE);
+                attendance.setLateMinutes((attendance.getLateMinutes() != null ? attendance.getLateMinutes() : 0) + mins);
+                attendance.setNotes("Salida anticipada (" + mins + " min antes de finalizar turno)");
+            } else {
+                if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
+                    attendance.setStatus(AttendanceStatus.ON_TIME);
+                }
+                if (nowTime.isAfter(scheduledEnd.plusMinutes(15))) {
+                    long extraMins = java.time.Duration.between(scheduledEnd, nowTime).toMinutes();
+                    double extraHours = extraMins / 60.0;
+                    attendance.setNotes(String.format("Turno completado con tiempo adicional / Horas extra (+%d min / %.1f hrs)", extraMins, extraHours));
+                }
             }
         }
 
