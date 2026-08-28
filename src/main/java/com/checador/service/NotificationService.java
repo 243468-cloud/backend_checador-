@@ -74,6 +74,25 @@ public class NotificationService {
         createNotif("SUPERUSER", null, NotifType.CHECK_OUT, title, body, "🔴");
     }
 
+    @Transactional
+    public void notifySecurityAlert(User employee, String details) {
+        String empName = employee != null ? employee.getFullName() : "Empleado";
+        String username = employee != null ? employee.getUsername() : "desconocido";
+        Long branchId = (employee != null && employee.getBranch() != null) ? employee.getBranch().getId() : null;
+        String branchName = (employee != null && employee.getBranch() != null) ? employee.getBranch().getName() : "Todas";
+        String time = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Mexico_City")).format(TIME_FMT);
+
+        String title = "🚨 ALERTA DE SEGURIDAD: " + empName;
+        String body = "El usuario @" + username + " (" + empName + ") " + details + " a las " + time + "."
+                + "\nSucursal: " + branchName;
+
+        // Notificar a ADMIN de la sucursal
+        createNotif("ADMIN", branchId, NotifType.SECURITY_ALERT, title, body, "🚨");
+
+        // Notificar a SUPERUSER (global)
+        createNotif("SUPERUSER", null, NotifType.SECURITY_ALERT, title, body, "🚨");
+    }
+
     // ─── Consultas ────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)

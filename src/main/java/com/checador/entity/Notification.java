@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
 public class Notification extends BaseEntity {
 
     public enum NotifType {
-        CHECK_IN, CHECK_OUT, LEAVE_REQUEST, LEAVE_APPROVED, LEAVE_REJECTED, SHIFT_REMINDER
+        CHECK_IN, CHECK_OUT, LEAVE_REQUEST, LEAVE_APPROVED, LEAVE_REJECTED, SHIFT_REMINDER, SECURITY_ALERT
     }
 
     @Id

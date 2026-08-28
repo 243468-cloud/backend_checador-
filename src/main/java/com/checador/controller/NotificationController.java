@@ -50,6 +50,17 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("ok", true));
     }
 
+    /** POST /api/notifications/security-alert — reporta intento de captura o checado fuera del local */
+    @PostMapping("/security-alert")
+    public ResponseEntity<?> sendSecurityAlert(@AuthenticationPrincipal User user,
+                                               @RequestBody(required = false) Map<String, String> body) {
+        String details = (body != null && body.get("details") != null && !body.get("details").isBlank())
+                ? body.get("details")
+                : "intentó capturar pantalla o checar fuera del local";
+        notifService.notifySecurityAlert(user, details);
+        return ResponseEntity.ok(Map.of("message", "Alerta enviada a administradores"));
+    }
+
     // ─── Helper ───────────────────────────────────────────────────────────────
 
     /** SUPERUSER ve todas las sucursales (branchId = null); ADMIN solo la suya */
