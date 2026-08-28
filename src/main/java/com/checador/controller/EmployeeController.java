@@ -99,6 +99,16 @@ public class EmployeeController {
         return ResponseEntity.ok(Map.of("message", "Contraseña actualizada"));
     }
 
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> delete(@PathVariable Long id,
+                                     @AuthenticationPrincipal User admin) {
+        User target = userService.findById(id);
+        assertSameBranchOrSuperuser(admin, target);
+        userService.deleteUser(id);
+        return ResponseEntity.ok(Map.of("message", "Empleado eliminado exitosamente"));
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     /**

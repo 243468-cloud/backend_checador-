@@ -215,6 +215,17 @@ public class AttendanceService {
         return attendanceRepository.save(a);
     }
 
+    public Attendance findById(Long id) {
+        return attendanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Registro de asistencia no encontrado"));
+    }
+
+    @Transactional
+    public void deleteAttendance(Long id) {
+        Attendance a = findById(id);
+        attendanceRepository.delete(a);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private void validateLocation(Branch branch, double lat, double lng) {

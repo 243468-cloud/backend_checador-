@@ -101,6 +101,20 @@ public class UserService implements UserDetailsService {
         userRepository.save(user);
     }
 
+    private final com.checador.repository.AttendanceRepository attendanceRepository;
+    private final com.checador.repository.PushSubscriptionRepository pushSubscriptionRepository;
+    private final com.checador.repository.LeaveRequestRepository leaveRequestRepository;
+
+    @Transactional
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        attendanceRepository.deleteByUserId(id);
+        pushSubscriptionRepository.deleteByUserId(id);
+        leaveRequestRepository.deleteByUserId(id);
+        userRepository.delete(user);
+    }
+
     public User findById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));

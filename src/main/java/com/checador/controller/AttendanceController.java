@@ -139,6 +139,26 @@ public class AttendanceController {
         }
     }
 
+    @DeleteMapping("/admin/{id}")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> deleteAttendance(@PathVariable Long id,
+                                               @AuthenticationPrincipal User admin) {
+        try {
+            Attendance a = attendanceService.findById(id);
+            if (admin != null && admin.getRole() != com.checador.entity.Role.SUPERUSER) {
+                Long adminBranch = admin.getBranch() != null ? admin.getBranch().getId() : null;
+                Long recordBranch = a.getBranch() != null ? a.getBranch().getId() : null;
+                if (!java.util.Objects.equals(adminBranch, recordBranch)) {
+                    return ResponseEntity.status(403).body(Map.of("error", "No tienes permiso para eliminar registros de otra sucursal"));
+                }
+            }
+            attendanceService.deleteAttendance(id);
+            return ResponseEntity.ok(Map.of("message", "Registro de asistencia eliminado exitosamente"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/admin/payroll")
     public ResponseEntity<?> downloadPayroll(@AuthenticationPrincipal User admin,
                                               @RequestParam int year,

@@ -11,6 +11,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.Modifying;
+
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
 
@@ -50,4 +52,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     List<Attendance> findMonthlyAttendanceByBranch(@Param("branchId") Long branchId, @Param("year") int year, @Param("month") int month);
 
     boolean existsByUserIdAndAttendanceDate(Long userId, LocalDate date);
+
+    @Modifying
+    @Query("DELETE FROM Attendance a WHERE a.user.id = :userId")
+    void deleteByUserId(@Param("userId") Long userId);
 }
