@@ -58,6 +58,18 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Estado actualizado"));
     }
 
+    @PatchMapping("/{id}/password")
+    @Transactional
+    public ResponseEntity<?> changePassword(@PathVariable Long id,
+                                             @RequestBody java.util.Map<String, String> body) {
+        String newPassword = body.get("password");
+        if (newPassword == null || newPassword.isBlank() || newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", "La contraseña debe tener al menos 6 caracteres"));
+        }
+        userService.changePassword(id, newPassword);
+        return ResponseEntity.ok(java.util.Map.of("message", "Contraseña de administrador actualizada"));
+    }
+
     private Long getBranchIdSafely(User u) {
         if (u == null) return null;
         try {
