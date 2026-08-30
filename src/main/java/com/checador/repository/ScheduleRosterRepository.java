@@ -25,4 +25,8 @@ public interface ScheduleRosterRepository extends JpaRepository<ScheduleRoster, 
     /** Semanas con registros para una sucursal (para el selector de semana). */
     @Query("SELECT DISTINCT r.weekStart FROM ScheduleRoster r WHERE r.branch.id = :branchId ORDER BY r.weekStart DESC")
     List<LocalDate> findDistinctWeekStartsByBranchId(Long branchId);
+
+    /** Busca horarios/cambios de turno específicos de un empleado en un día determinado. */
+    @Query("SELECT r FROM ScheduleRoster r WHERE r.branch.id = :branchId AND r.weekStart = :weekStart AND r.dayIndex = :dayIndex AND (UPPER(r.employeeName) LIKE UPPER(CONCAT('%', :namePattern, '%')))")
+    List<ScheduleRoster> findRosterForEmployeeDay(Long branchId, LocalDate weekStart, Integer dayIndex, String namePattern);
 }

@@ -22,6 +22,7 @@ import java.util.Optional;
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
+    private final com.checador.repository.ScheduleRosterRepository rosterRepository;
     private final GeoService geoService;
 
     @Lazy
@@ -41,6 +42,8 @@ public class AttendanceService {
 
     /**
      * Registra la entrada del empleado con validación de geolocalización.
+     * Reconoce automáticamente cambios de turno (CAMBIO_TURNO / Horario Personalizado)
+     * y respeta la exención de retardos pautada por el Super Admin.
      */
     @Transactional
     public Attendance checkIn(User employee, Branch branch, double lat, double lng) {
@@ -73,14 +76,37 @@ public class AttendanceService {
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = employee.getShiftType();
         LocalTime scheduledStart = getShiftStart(shift);
-        int toleranceMinutes = 10; // Explicit 10-minute tolerance rule as specified by business logic
+        int toleranceMinutes = 10;
 
-        // Calcular tardanza de entrada con 10 minutos de tolerancia
+        // ─── Reconocimiento dinámico de Cambio de Turno en la Matriz Semanal ───
+        boolean isExemptFromLate = false;
+        try {
+            LocalDate weekStart = today.with(java.time.DayOfWeek.MONDAY);
+            int dayIdx = today.getDayOfWeek().getValue() - 1; // 0=Lun...6=Dom
+            String empFirstName = employee.getFullName().split(" ")[0];
+
+            List<com.checador.entity.ScheduleRoster> rosterCells = rosterRepository
+                    .findRosterForEmployeeDay(branch.getId(), weekStart, dayIdx, empFirstName);
+
+            for (com.checador.entity.ScheduleRoster r : rosterCells) {
+                if (r.getShiftStartTime() != null && !r.getShiftStartTime().isBlank()) {
+                    try {
+                        scheduledStart = LocalTime.parse(r.getShiftStartTime());
+                    } catch (Exception ignored) {}
+                }
+                if (r.getStatusType() == com.checador.entity.ScheduleRoster.RosterStatus.CAMBIO_TURNO
+                    || (r.getReason() != null && r.getReason().toUpperCase().contains("EXENTO"))) {
+                    isExemptFromLate = true;
+                }
+            }
+        } catch (Exception ignored) {}
+
+        // Calcular tardanza de entrada respetando exención de retardos del Super Admin
         LocalTime nowTime = now.toLocalTime();
         int lateMinutes = 0;
         AttendanceStatus status = AttendanceStatus.ON_TIME;
 
-        if (nowTime.isAfter(scheduledStart.plusMinutes(toleranceMinutes))) {
+        if (!isExemptFromLate && nowTime.isAfter(scheduledStart.plusMinutes(toleranceMinutes))) {
             lateMinutes = (int) java.time.Duration.between(scheduledStart, nowTime).toMinutes();
             status = AttendanceStatus.LATE;
         }
@@ -140,6 +166,23 @@ public class AttendanceService {
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
         LocalTime scheduledEnd = getShiftEnd(shift);
+
+        try {
+            LocalDate weekStart = today.with(java.time.DayOfWeek.MONDAY);
+            int dayIdx = today.getDayOfWeek().getValue() - 1;
+            String empFirstName = employee.getFullName().split(" ")[0];
+
+            List<com.checador.entity.ScheduleRoster> rosterCells = rosterRepository
+                    .findRosterForEmployeeDay(branch.getId(), weekStart, dayIdx, empFirstName);
+
+            for (com.checador.entity.ScheduleRoster r : rosterCells) {
+                if (r.getShiftEndTime() != null && !r.getShiftEndTime().isBlank()) {
+                    try {
+                        scheduledEnd = LocalTime.parse(r.getShiftEndTime());
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (Exception ignored) {}
 
         long elapsedHours = java.time.Duration.between(attendance.getCheckInTime(), now).toHours();
         if (elapsedHours >= 16) {
