@@ -102,6 +102,22 @@ public class ScheduleController {
         return ResponseEntity.ok(summary);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET /api/schedules/individual?branchId=X&weekStart=YYYY-MM-DD
+    // Devuelve los horarios individuales calculados 100% en el backend.
+    // Oculta empleados sin asignación (como Gael o Leopoldo sin horario) y asigna
+    // explícitamente "Descanso" en los días no seleccionados.
+    // ─────────────────────────────────────────────────────────────────────────
+    @GetMapping("/individual")
+    public ResponseEntity<?> getIndividualSchedules(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) Long branchId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
+        Long targetBranch = resolveBranch(user, branchId);
+        List<ScheduleService.EmployeeIndividualScheduleDTO> individualSchedules = scheduleService.getIndividualSchedules(targetBranch, weekStart);
+        return ResponseEntity.ok(individualSchedules);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private Long resolveBranch(User user, Long requestedBranchId) {

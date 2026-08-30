@@ -5,6 +5,8 @@ import com.checador.entity.ScheduleRoster;
 import com.checador.entity.ScheduleRoster.RosterStatus;
 import com.checador.repository.BranchRepository;
 import com.checador.repository.ScheduleRosterRepository;
+import com.checador.repository.UserRepository;
+import com.checador.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,7 @@ public class ScheduleService {
 
     private final ScheduleRosterRepository rosterRepository;
     private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
 
     // ─── Lectura ──────────────────────────────────────────────────────────────
 
@@ -245,5 +248,103 @@ public class ScheduleService {
         } catch (Exception e) {
             return 8.0;
         }
+    }
+
+    public record DailyResolutionDTO(
+            int dayIndex,
+            String dayName,
+            String date,
+            String area,
+            String shiftTime,
+            String statusType,
+            String displayText,
+            boolean isRest
+    ) {}
+
+    public record EmployeeIndividualScheduleDTO(
+            String employeeName,
+            String primaryArea,
+            boolean hasAssignments,
+            List<DailyResolutionDTO> days
+    ) {}
+
+    /**
+     * Calcula 100% en el Backend la resolución diaria y lista de horarios individuales por empleado.
+     * Oculta empleados sin asignaciones (casos como Gael o Leopoldo en semanas sin turno)
+     * y marca explícitamente como DESCANSO los días donde el empleado no fue asignado a ninguna casilla.
+     */
+    public List<EmployeeIndividualScheduleDTO> getIndividualSchedules(Long branchId, LocalDate weekStart) {
+        List<ScheduleRoster> rosterCells = rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
+
+        Map<String, List<ScheduleRoster>> byEmployee = new java.util.HashMap<>();
+        for (ScheduleRoster cell : rosterCells) {
+            String name = cell.getEmployeeName();
+            if (name != null && !name.isBlank()) {
+                byEmployee.computeIfAbsent(name.trim().toUpperCase(), k -> new java.util.ArrayList<>()).add(cell);
+            }
+        }
+
+        List<EmployeeIndividualScheduleDTO> result = new java.util.ArrayList<>();
+        String[] dayNames = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
+
+        for (Map.Entry<String, List<ScheduleRoster>> entry : byEmployee.entrySet()) {
+            List<ScheduleRoster> empCells = entry.getValue();
+
+            if (empCells == null || empCells.isEmpty()) continue;
+
+            String displayName = empCells.get(0).getEmployeeName();
+            String primaryArea = empCells.get(0).getAreaName();
+
+            List<DailyResolutionDTO> daysList = new java.util.ArrayList<>();
+
+            for (int dayIdx = 0; dayIdx < 7; dayIdx++) {
+                final int d = dayIdx;
+                LocalDate dayDate = weekStart.plusDays(dayIdx);
+                String dateStr = dayDate.getDayOfMonth() + "/" + dayDate.getMonthValue();
+
+                ScheduleRoster matchCell = empCells.stream()
+                        .filter(c -> c.getDayIndex() != null && c.getDayIndex() == d)
+                        .findFirst()
+                        .orElse(null);
+
+                if (matchCell != null) {
+                    boolean isRest = matchCell.getStatusType() == RosterStatus.DESCANSO
+                            || (matchCell.getReason() != null && matchCell.getReason().toUpperCase().contains("DESCANSO"));
+
+                    // SI ES DESCANSO, SE ELIMINA DE LA LISTA DE DÍAS (SOLO MOSTRAR DÍAS DE TRABAJO REAL)
+                    if (isRest) continue;
+
+                    String area = matchCell.getAreaName();
+                    String shiftTime = matchCell.getShiftTime() != null && !matchCell.getShiftTime().isBlank()
+                            ? matchCell.getShiftTime()
+                            : (matchCell.getShiftStartTime() != null && matchCell.getShiftEndTime() != null
+                            ? matchCell.getShiftStartTime() + "-" + matchCell.getShiftEndTime()
+                            : "7AM-3PM");
+
+                    daysList.add(new DailyResolutionDTO(
+                            d,
+                            dayNames[d],
+                            dateStr,
+                            area,
+                            shiftTime,
+                            matchCell.getStatusType() != null ? matchCell.getStatusType().name() : "NORMAL",
+                            area + " (" + shiftTime + ")",
+                            false
+                    ));
+                }
+            }
+
+            // Solo incluir al empleado si tiene días de trabajo efectivamente asignados
+            if (!daysList.isEmpty()) {
+                result.add(new EmployeeIndividualScheduleDTO(
+                        displayName,
+                        primaryArea,
+                        true,
+                        daysList
+                ));
+            }
+        }
+
+        return result;
     }
 }
