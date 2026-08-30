@@ -91,8 +91,8 @@ public class ScheduleController {
 
     private Long resolveBranch(User user, Long requestedBranchId) {
         if (requestedBranchId != null) return requestedBranchId;
-        if (user.getBranch() != null) return user.getBranch().getId();
-        throw new RuntimeException("Se requiere branchId");
+        if (user != null && user.getBranch() != null) return user.getBranch().getId();
+        return 1L; // Fallback predeterminado a sucursal 1 para Superusuarios
     }
 
     private Map<String, Object> toResponse(ScheduleRoster r) {
@@ -106,6 +106,13 @@ public class ScheduleController {
         m.put("statusType", r.getStatusType().name());
         m.put("weekStart", r.getWeekStart() != null ? r.getWeekStart().toString() : null);
         m.put("branchId", r.getBranch().getId());
+        m.put("shiftStartTime", r.getShiftStartTime());
+        m.put("shiftEndTime", r.getShiftEndTime());
+        m.put("secondShiftStartTime", r.getSecondShiftStartTime());
+        m.put("secondShiftEndTime", r.getSecondShiftEndTime());
+        m.put("targetArea", r.getTargetArea());
+        m.put("reason", r.getReason());
+        m.put("createdBy", r.getCreatedBy());
         return m;
     }
 

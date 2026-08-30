@@ -57,6 +57,34 @@ public class ScheduleRoster extends BaseEntity {
     @Column(name = "week_start")
     private LocalDate weekStart;
 
+    /** Horario de inicio de turno cambiado, ej. '14:00' */
+    @Column(name = "shift_start_time", length = 20)
+    private String shiftStartTime;
+
+    /** Horario de fin de turno cambiado, ej. '22:00' */
+    @Column(name = "shift_end_time", length = 20)
+    private String shiftEndTime;
+
+    /** Horario de inicio del segundo turno (Doble) */
+    @Column(name = "second_shift_start_time", length = 20)
+    private String secondShiftStartTime;
+
+    /** Horario de fin del segundo turno (Doble) */
+    @Column(name = "second_shift_end_time", length = 20)
+    private String secondShiftEndTime;
+
+    /** Área destino para cambio de área, ej. 'BARRA' */
+    @Column(name = "target_area", length = 100)
+    private String targetArea;
+
+    /** Motivo o justificación del cambio de turno/área */
+    @Column(name = "reason", length = 255)
+    private String reason;
+
+    /** Usuario o rol que registró el cambio para auditoría */
+    @Column(name = "created_by", length = 100)
+    private String createdBy;
+
     public enum RosterStatus {
         NORMAL, DESCANSO, CAMBIO_TURNO, DOBLE_TURNO, CAMBIO_AREA
     }

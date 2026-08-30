@@ -72,6 +72,13 @@ public class ScheduleService {
                     .employeeName((String) cell.getOrDefault("employeeName", ""))
                     .statusType(status)
                     .weekStart(weekStart)
+                    .shiftStartTime((String) cell.get("shiftStartTime"))
+                    .shiftEndTime((String) cell.get("shiftEndTime"))
+                    .secondShiftStartTime((String) cell.get("secondShiftStartTime"))
+                    .secondShiftEndTime((String) cell.get("secondShiftEndTime"))
+                    .targetArea((String) cell.get("targetArea"))
+                    .reason((String) cell.get("reason"))
+                    .createdBy((String) cell.get("createdBy"))
                     .build();
         }).toList();
 
