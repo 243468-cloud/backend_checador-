@@ -87,6 +87,21 @@ public class ScheduleController {
         return ResponseEntity.ok(Map.of("message", "Horario eliminado correctamente"));
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // GET /api/schedules/summary?branchId=X&weekStart=YYYY-MM-DD
+    // Devuelve todos los cálculos de negocio, balance de horas, KPIs y solapamientos
+    // procesados 100% en el backend.
+    // ─────────────────────────────────────────────────────────────────────────
+    @GetMapping("/summary")
+    public ResponseEntity<?> getScheduleSummary(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) Long branchId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
+        Long targetBranch = resolveBranch(user, branchId);
+        ScheduleService.ScheduleSummaryDTO summary = scheduleService.calculateScheduleSummary(targetBranch, weekStart);
+        return ResponseEntity.ok(summary);
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private Long resolveBranch(User user, Long requestedBranchId) {

@@ -90,4 +90,160 @@ public class ScheduleService {
     public void deleteRoster(Long branchId, LocalDate weekStart) {
         rosterRepository.deleteByBranchIdAndWeekStart(branchId, weekStart);
     }
+
+    // ─── Lógica de Negocio y Cálculo Completo en el Backend ───────────────────
+
+    public record EmployeeBalanceDTO(
+            String name,
+            String primaryArea,
+            int workDays,
+            int restDays,
+            int doubleShifts,
+            int shiftChanges,
+            double totalScheduledHours,
+            double actualWorkedHours,
+            double overtimeHours,
+            String statusBalance
+    ) {}
+
+    public record ScheduleSummaryDTO(
+            int totalEmployees,
+            int avgHours,
+            int totalRestDays,
+            int totalDoubleShifts,
+            double totalOvertimeHours,
+            List<EmployeeBalanceDTO> employeeBalances,
+            List<String> overlapWarnings
+    ) {}
+
+    /**
+     * Calcula completamente en el Backend todas las métricas de balance,
+     * horas programadas, horas extra, solapamientos y KPIs del ROL semanal.
+     */
+    public ScheduleSummaryDTO calculateScheduleSummary(Long branchId, LocalDate weekStart) {
+        List<ScheduleRoster> rosterCells = rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
+
+        // Agrupar por empleado
+        Map<String, List<ScheduleRoster>> byEmployee = new java.util.HashMap<>();
+        for (ScheduleRoster cell : rosterCells) {
+            String name = cell.getEmployeeName();
+            if (name != null && !name.isBlank()) {
+                byEmployee.computeIfAbsent(name, k -> new java.util.ArrayList<>()).add(cell);
+            }
+        }
+
+        List<EmployeeBalanceDTO> balances = new java.util.ArrayList<>();
+        List<String> overlapWarnings = new java.util.ArrayList<>();
+
+        // Detectar solapamientos (mismo empleado en distintas áreas el mismo día)
+        Map<String, Map<Integer, List<String>>> empDayAreas = new java.util.HashMap<>();
+        for (ScheduleRoster cell : rosterCells) {
+            if (cell.getEmployeeName() != null && cell.getDayIndex() != null) {
+                empDayAreas
+                    .computeIfAbsent(cell.getEmployeeName(), k -> new java.util.HashMap<>())
+                    .computeIfAbsent(cell.getDayIndex(), k -> new java.util.ArrayList<>())
+                    .add(cell.getAreaName());
+            }
+        }
+
+        for (var entry : empDayAreas.entrySet()) {
+            String emp = entry.getKey();
+            for (var dayEntry : entry.getValue().entrySet()) {
+                if (dayEntry.getValue().size() > 1) {
+                    overlapWarnings.add("Solapamiento: " + emp + " tiene turnos en varias áreas el día " + (dayEntry.getKey() + 1));
+                }
+            }
+        }
+
+        for (var entry : byEmployee.entrySet()) {
+            String name = entry.getKey();
+            List<ScheduleRoster> cells = entry.getValue();
+
+            String primaryArea = cells.isEmpty() ? "BARRA" : cells.get(0).getAreaName();
+            java.util.Set<Integer> workDaysSet = new java.util.HashSet<>();
+            java.util.Set<Integer> restDaysSet = new java.util.HashSet<>();
+            int doubleShifts = 0;
+            int shiftChanges = 0;
+            double totalScheduledHours = 0;
+
+            for (ScheduleRoster c : cells) {
+                if (c.getStatusType() == RosterStatus.DESCANSO) {
+                    restDaysSet.add(c.getDayIndex());
+                } else {
+                    workDaysSet.add(c.getDayIndex());
+
+                    if (c.getStatusType() == RosterStatus.DOBLE_TURNO) doubleShifts++;
+                    if (c.getStatusType() == RosterStatus.CAMBIO_TURNO) shiftChanges++;
+
+                    // Cálculo de Horas Programadas
+                    double shiftHours = 8.0; // Predeterminado
+                    if (c.getShiftStartTime() != null && c.getShiftEndTime() != null &&
+                        !c.getShiftStartTime().isBlank() && !c.getShiftEndTime().isBlank()) {
+                        shiftHours = calculateHours(c.getShiftStartTime(), c.getShiftEndTime());
+                    }
+                    totalScheduledHours += shiftHours;
+
+                    if (c.getSecondShiftStartTime() != null && c.getSecondShiftEndTime() != null &&
+                        !c.getSecondShiftStartTime().isBlank() && !c.getSecondShiftEndTime().isBlank()) {
+                        totalScheduledHours += calculateHours(c.getSecondShiftStartTime(), c.getSecondShiftEndTime());
+                    }
+                }
+            }
+
+            int workDays = workDaysSet.size();
+            int restDays = restDaysSet.size();
+            double overtimeHours = Math.max(0, totalScheduledHours - 48.0);
+
+            String statusBalance = "EQUILIBRADO";
+            if (totalScheduledHours > 48 || doubleShifts >= 2) {
+                statusBalance = "ELEVADO";
+            } else if (totalScheduledHours < 35 && workDays > 0) {
+                statusBalance = "REDUCIDO";
+            }
+
+            balances.add(new EmployeeBalanceDTO(
+                    name,
+                    primaryArea,
+                    workDays,
+                    restDays,
+                    doubleShifts,
+                    shiftChanges,
+                    Math.round(totalScheduledHours * 10.0) / 10.0,
+                    Math.round(totalScheduledHours * 10.0) / 10.0,
+                    Math.round(overtimeHours * 10.0) / 10.0,
+                    statusBalance
+            ));
+        }
+
+        int totalEmployees = balances.size();
+        int avgHours = totalEmployees > 0 ? (int) Math.round(balances.stream().mapToDouble(EmployeeBalanceDTO::totalScheduledHours).sum() / totalEmployees) : 0;
+        int totalRestDays = balances.stream().mapToInt(EmployeeBalanceDTO::restDays).sum();
+        int totalDoubleShifts = balances.stream().mapToInt(EmployeeBalanceDTO::doubleShifts).sum();
+        double totalOvertimeHours = Math.round(balances.stream().mapToDouble(EmployeeBalanceDTO::overtimeHours).sum() * 10.0) / 10.0;
+
+        return new ScheduleSummaryDTO(
+                totalEmployees,
+                avgHours,
+                totalRestDays,
+                totalDoubleShifts,
+                totalOvertimeHours,
+                balances,
+                overlapWarnings
+        );
+    }
+
+    private double calculateHours(String startStr, String endStr) {
+        try {
+            java.time.LocalTime start = java.time.LocalTime.parse(startStr);
+            java.time.LocalTime end = java.time.LocalTime.parse(endStr);
+            long startMins = start.toSecondOfDay() / 60;
+            long endMins = end.toSecondOfDay() / 60;
+            if (endMins <= startMins) {
+                endMins += 24 * 60;
+            }
+            return (endMins - startMins) / 60.0;
+        } catch (Exception e) {
+            return 8.0;
+        }
+    }
 }
