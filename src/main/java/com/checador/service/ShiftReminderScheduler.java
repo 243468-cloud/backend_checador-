@@ -24,6 +24,7 @@ public class ShiftReminderScheduler {
     private final UserRepository userRepository;
     private final AttendanceRepository attendanceRepository;
     private final NotificationRepository notificationRepository;
+    private final ShiftConfigService shiftConfigService;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -147,29 +148,22 @@ public class ShiftReminderScheduler {
     }
 
     private LocalTime getShiftStartTime(ShiftType shift) {
-        return switch (shift) {
-            case MORNING -> LocalTime.of(7, 0);
-            case EVENING -> LocalTime.of(15, 0);
-            case SUNDAY -> LocalTime.of(8, 0);
-            case MIXED -> LocalTime.of(11, 0);
-        };
+        return shiftConfigService.getShiftStartTime(shift, false);
     }
 
     private LocalTime getShiftEndTime(ShiftType shift) {
-        return switch (shift) {
-            case MORNING -> LocalTime.of(15, 0);
-            case EVENING -> LocalTime.of(23, 0);
-            case SUNDAY -> LocalTime.of(18, 0);
-            case MIXED -> LocalTime.of(19, 0);
-        };
+        return shiftConfigService.getShiftEndTime(shift, false);
     }
 
     private String translateShift(ShiftType shift) {
-        return switch (shift) {
-            case MORNING -> "Matutino (7:00 – 15:00)";
-            case EVENING -> "Vespertino (15:00 – 23:00)";
-            case SUNDAY -> "Dominical (8:00 – 18:00)";
-            case MIXED -> "Mixto (11:00 – 19:00)";
+        LocalTime start = getShiftStartTime(shift);
+        LocalTime end = getShiftEndTime(shift);
+        String name = switch (shift) {
+            case MORNING -> "Matutino";
+            case EVENING -> "Vespertino";
+            case SUNDAY -> "Dominical";
+            case MIXED -> "Mixto";
         };
+        return name + " (" + start.format(TIME_FMT) + " – " + end.format(TIME_FMT) + ")";
     }
 }

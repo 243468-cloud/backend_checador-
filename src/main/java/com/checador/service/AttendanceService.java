@@ -24,25 +24,17 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepository;
     private final com.checador.repository.ScheduleRosterRepository rosterRepository;
     private final GeoService geoService;
+    private final ShiftConfigService shiftConfigService;
 
     @Lazy
     private final NotificationService notificationService;
-
-    // ─── Horarios de turnos ───────────────────────────────────────────────────
-    private static final LocalTime MORNING_START   = LocalTime.of(7, 0);
-    private static final LocalTime MORNING_END     = LocalTime.of(15, 0);
-    private static final LocalTime EVENING_START   = LocalTime.of(15, 0);
-    private static final LocalTime EVENING_END     = LocalTime.of(23, 0);
-    private static final LocalTime SUNDAY_START    = LocalTime.of(8, 0);
-    private static final LocalTime SUNDAY_END      = LocalTime.of(18, 0);
-    private static final LocalTime MIXED_START     = LocalTime.of(11, 0);
-    private static final LocalTime MIXED_END       = LocalTime.of(19, 0);
 
     private static final java.time.ZoneId MEXICO_ZONE = java.time.ZoneId.of("America/Mexico_City");
 
     /**
      * Registra la entrada del empleado con validación de geolocalización.
-     * Reconoce automáticamente cambios de turno (CAMBIO_TURNO / Horario Personalizado)
+     * Reconoce automáticamente cambios de turno (CAMBIO_TURNO / Horario Personalizado),
+     * evalúa horario Dominical (8:00 AM) los domingos para evitar retardos injustificados,
      * y respeta la exención de retardos pautada por el Super Admin.
      */
     @Transactional
@@ -317,23 +309,11 @@ public class AttendanceService {
     }
 
     public LocalTime getShiftStart(ShiftType shift) {
-        if (shift == null) return MORNING_START;
-        return switch (shift) {
-            case MORNING -> MORNING_START;
-            case EVENING -> EVENING_START;
-            case SUNDAY  -> SUNDAY_START;
-            case MIXED   -> MIXED_START;
-        };
+        return shiftConfigService.getShiftStartTime(shift, false);
     }
 
     public LocalTime getShiftEnd(ShiftType shift) {
-        if (shift == null) return MORNING_END;
-        return switch (shift) {
-            case MORNING -> MORNING_END;
-            case EVENING -> EVENING_END;
-            case SUNDAY  -> SUNDAY_END;
-            case MIXED   -> MIXED_END;
-        };
+        return shiftConfigService.getShiftEndTime(shift, false);
     }
 
     public record DashboardStats(long onTime, long late, long absent) {}
