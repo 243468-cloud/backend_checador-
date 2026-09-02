@@ -7,6 +7,8 @@ import com.checador.repository.BranchRepository;
 import com.checador.repository.ScheduleRosterRepository;
 import com.checador.repository.UserRepository;
 import com.checador.entity.User;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,47 @@ public class ScheduleService {
     private final ScheduleRosterRepository rosterRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * Extrae el nombre real del empleado desde el campo employeeName,
+     * que puede ser un JSON stringificado ({"text":"ITZA","type":"NORMAL",...})
+     * o un nombre simple como "ITZA".
+     */
+    private String extractRealName(String rawEmployeeName) {
+        if (rawEmployeeName == null || rawEmployeeName.isBlank()) return null;
+        String trimmed = rawEmployeeName.trim();
+        if (trimmed.startsWith("{")) {
+            try {
+                JsonNode node = objectMapper.readTree(trimmed);
+                JsonNode textNode = node.get("text");
+                if (textNode != null && !textNode.asText().isBlank()) {
+                    return textNode.asText().trim();
+                }
+            } catch (Exception ignored) {
+                // Si falla el parseo, usar el valor crudo
+            }
+        }
+        return trimmed;
+    }
+
+    /**
+     * Extrae el statusType desde el campo employeeName JSON o devuelve el statusType
+     * directo de la entidad como fallback.
+     */
+    private String extractStatusType(ScheduleRoster cell) {
+        String rawName = cell.getEmployeeName();
+        if (rawName != null && rawName.trim().startsWith("{")) {
+            try {
+                JsonNode node = objectMapper.readTree(rawName.trim());
+                JsonNode typeNode = node.get("type");
+                if (typeNode != null && !typeNode.asText().isBlank()) {
+                    return typeNode.asText().trim().toUpperCase();
+                }
+            } catch (Exception ignored) {}
+        }
+        return cell.getStatusType() != null ? cell.getStatusType().name() : "NORMAL";
+    }
 
     // ─── Lectura ──────────────────────────────────────────────────────────────
 
@@ -126,10 +169,10 @@ public class ScheduleService {
     public ScheduleSummaryDTO calculateScheduleSummary(Long branchId, LocalDate weekStart) {
         List<ScheduleRoster> rosterCells = rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
 
-        // Agrupar por empleado
+        // Agrupar por nombre real del empleado (parseando JSON si es necesario)
         Map<String, List<ScheduleRoster>> byEmployee = new java.util.HashMap<>();
         for (ScheduleRoster cell : rosterCells) {
-            String name = cell.getEmployeeName();
+            String name = extractRealName(cell.getEmployeeName());
             if (name != null && !name.isBlank()) {
                 byEmployee.computeIfAbsent(name, k -> new java.util.ArrayList<>()).add(cell);
             }
@@ -141,9 +184,10 @@ public class ScheduleService {
         // Detectar solapamientos (mismo empleado en distintas áreas el mismo día)
         Map<String, Map<Integer, List<String>>> empDayAreas = new java.util.HashMap<>();
         for (ScheduleRoster cell : rosterCells) {
-            if (cell.getEmployeeName() != null && cell.getDayIndex() != null) {
+            String realName = extractRealName(cell.getEmployeeName());
+            if (realName != null && cell.getDayIndex() != null) {
                 empDayAreas
-                    .computeIfAbsent(cell.getEmployeeName(), k -> new java.util.HashMap<>())
+                    .computeIfAbsent(realName, k -> new java.util.HashMap<>())
                     .computeIfAbsent(cell.getDayIndex(), k -> new java.util.ArrayList<>())
                     .add(cell.getAreaName());
             }
@@ -276,11 +320,12 @@ public class ScheduleService {
     public List<EmployeeIndividualScheduleDTO> getIndividualSchedules(Long branchId, LocalDate weekStart) {
         List<ScheduleRoster> rosterCells = rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
 
-        Map<String, List<ScheduleRoster>> byEmployee = new java.util.HashMap<>();
+        // Agrupamos por nombre real del empleado (parseando JSON si es necesario)
+        Map<String, List<ScheduleRoster>> byEmployee = new java.util.LinkedHashMap<>();
         for (ScheduleRoster cell : rosterCells) {
-            String name = cell.getEmployeeName();
-            if (name != null && !name.isBlank()) {
-                byEmployee.computeIfAbsent(name.trim().toUpperCase(), k -> new java.util.ArrayList<>()).add(cell);
+            String realName = extractRealName(cell.getEmployeeName());
+            if (realName != null && !realName.isBlank()) {
+                byEmployee.computeIfAbsent(realName.toUpperCase(), k -> new java.util.ArrayList<>()).add(cell);
             }
         }
 
@@ -292,7 +337,9 @@ public class ScheduleService {
 
             if (empCells == null || empCells.isEmpty()) continue;
 
-            String displayName = empCells.get(0).getEmployeeName();
+            // displayName es el nombre real parseado (sin JSON), capitalizado correctamente
+            String displayName = extractRealName(empCells.get(0).getEmployeeName());
+            if (displayName == null) displayName = entry.getKey();
             String primaryArea = empCells.get(0).getAreaName();
 
             List<DailyResolutionDTO> daysList = new java.util.ArrayList<>();
@@ -308,18 +355,23 @@ public class ScheduleService {
                         .orElse(null);
 
                 if (matchCell != null) {
+                    // Detectar DESCANSO tanto desde statusType como desde el JSON de employeeName
+                    String resolvedStatus = extractStatusType(matchCell);
                     boolean isRest = matchCell.getStatusType() == RosterStatus.DESCANSO
+                            || "DESCANSO".equals(resolvedStatus)
                             || (matchCell.getReason() != null && matchCell.getReason().toUpperCase().contains("DESCANSO"));
 
-                    // SI ES DESCANSO, SE ELIMINA DE LA LISTA DE DÍAS (SOLO MOSTRAR DÍAS DE TRABAJO REAL)
+                    // SI ES DESCANSO, no se incluye en la lista (el frontend muestra 7 días fijos)
                     if (isRest) continue;
 
                     String area = matchCell.getAreaName();
+                    // Prioriza shiftTime de la fila, luego los campos de hora personalizados
                     String shiftTime = matchCell.getShiftTime() != null && !matchCell.getShiftTime().isBlank()
                             ? matchCell.getShiftTime()
                             : (matchCell.getShiftStartTime() != null && matchCell.getShiftEndTime() != null
+                                    && !matchCell.getShiftStartTime().isBlank() && !matchCell.getShiftEndTime().isBlank()
                             ? matchCell.getShiftStartTime() + "-" + matchCell.getShiftEndTime()
-                            : "7AM-3PM");
+                            : "Turno Regular");
 
                     daysList.add(new DailyResolutionDTO(
                             d,
@@ -327,7 +379,7 @@ public class ScheduleService {
                             dateStr,
                             area,
                             shiftTime,
-                            matchCell.getStatusType() != null ? matchCell.getStatusType().name() : "NORMAL",
+                            resolvedStatus,
                             area + " (" + shiftTime + ")",
                             false
                     ));
