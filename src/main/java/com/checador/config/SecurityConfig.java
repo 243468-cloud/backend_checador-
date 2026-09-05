@@ -1,6 +1,8 @@
 package com.checador.config;
 
 import com.checador.security.JwtAuthFilter;
+import com.checador.security.RateLimitFilter;
+import com.checador.security.SecurityHeadersFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +35,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
+    private final SecurityHeadersFilter securityHeadersFilter;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
 
@@ -92,6 +96,8 @@ public class SecurityConfig {
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
+            .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -102,13 +108,9 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         if (allowedOrigins != null && !allowedOrigins.isBlank()) {
             for (String origin : allowedOrigins.split(",")) {
-                config.addAllowedOriginPattern(origin.trim());
+                config.addAllowedOrigin(origin.trim()); // Allowed exact origin instead of pattern
             }
         }
-        config.addAllowedOriginPattern("http://localhost:*");
-        config.addAllowedOriginPattern("http://127.0.0.1:*");
-        config.addAllowedOriginPattern("https://*.vercel.app");
-        config.addAllowedOriginPattern("https://*.onrender.com");
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

@@ -261,12 +261,14 @@ public class ReportService {
                 for (Attendance a : list) {
                     switch (a.getStatus()) {
                         case ON_TIME, LATE, IN_SHIFT -> {
+                            // Cambio 3: registros sin checkout están incompletos — no los sumamos al total
+                            if (a.getCheckOutTime() == null) break;
                             worked++;
                             double h = a.getActualHoursWorked();
                             double shiftHours = getShiftHours(a.getShiftType());
 
                             double ordinary = Math.min(h, shiftHours);
-                            double extra    = a.getEffectiveExtraHours(shiftHours);
+                            double extra    = a.getEffectiveExtraHours(shiftHours); // misma fórmula que siempre
 
                             ordinaryHours += ordinary;
                             extraHours    += extra;
@@ -276,6 +278,13 @@ public class ReportService {
                         case EXCUSED  -> absJus++;
                     }
                 }
+
+                // Cambio 2: contar turnos abiertos para incluirlos en Observaciones
+                long openShifts = list.stream()
+                        .filter(a -> a.getCheckOutTime() == null
+                                && a.getStatus() != AttendanceStatus.ABSENT
+                                && a.getStatus() != AttendanceStatus.EXCUSED)
+                        .count();
 
                 Row gr = global.createRow(globalRow++);
                 gr.createCell(0).setCellValue(fullName);
@@ -304,8 +313,10 @@ public class ReportService {
                 // Observaciones automáticas
                 StringBuilder obs = new StringBuilder();
                 if (absUnj > 2) obs.append("⚠ Múltiples faltas. ");
-                if (tardyMinutes > 60) obs.append("⚠ Retardo acumulado > 1h. ");
+                if (tardyMinutes > 60) obs.append("⚠ Retardo acumulado >1h. ");
                 if (extraHours > 5) obs.append("★ Horas extra significativas. ");
+                // Cambio 2: advertir sobre turnos sin salida
+                if (openShifts > 0) obs.append("⚠ ").append(openShifts).append(" registro(s) sin salida — totales incompletos. ");
                 gr.createCell(7).setCellValue(obs.toString().trim());
 
                 // ── Hoja de detalle por empleado (nombre seguro e único) ─────────
@@ -340,10 +351,22 @@ public class ReportService {
                 for (Attendance a : list.stream().sorted(
                         java.util.Comparator.comparing(Attendance::getAttendanceDate)).toList()) {
 
+                    boolean missingCheckout = a.getCheckOutTime() == null
+                            && a.getStatus() != AttendanceStatus.ABSENT
+                            && a.getStatus() != AttendanceStatus.EXCUSED;
+
                     Row row = detail.createRow(dr++);
                     row.createCell(0).setCellValue(a.getAttendanceDate().format(DATE_FMT));
                     row.createCell(1).setCellValue(a.getCheckInTime() != null ? a.getCheckInTime().format(TIME_FMT) : "—");
-                    row.createCell(2).setCellValue(a.getCheckOutTime() != null ? a.getCheckOutTime().format(TIME_FMT) : "—");
+
+                    // Cambio 2: marcar visualmente cuando falta la salida
+                    Cell checkOutCell = row.createCell(2);
+                    if (missingCheckout) {
+                        checkOutCell.setCellValue("⚠ Sin salida");
+                        checkOutCell.setCellStyle(warnStyle);
+                    } else {
+                        checkOutCell.setCellValue(a.getCheckOutTime() != null ? a.getCheckOutTime().format(TIME_FMT) : "—");
+                    }
 
                     Cell sc = row.createCell(3);
                     sc.setCellValue(translateStatus(a.getStatus()));
@@ -352,13 +375,20 @@ public class ReportService {
                             createStatusStyle(wb, IndexedColors.GOLD),
                             createStatusStyle(wb, IndexedColors.ROSE)));
 
-                    double h          = a.getActualHoursWorked();
-                    double shiftHours = getShiftHours(a.getShiftType());
-                    double ordinary   = Math.min(h, shiftHours);
-                    double extra      = Math.max(0, h - shiftHours);
+                    if (missingCheckout) {
+                        // Cambio 3: registro abierto — mostrar guión en lugar de 0 para no confundir
+                        row.createCell(4).setCellValue("—");
+                        row.createCell(5).setCellValue("—");
+                    } else {
+                        double h          = a.getActualHoursWorked();
+                        double shiftHours = getShiftHours(a.getShiftType());
+                        double ordinary   = Math.min(h, shiftHours);
+                        // Cambio 1: misma fórmula que el resumen — getEffectiveExtraHours() en vez de calc raw
+                        double extra      = a.getEffectiveExtraHours(shiftHours);
 
-                    row.createCell(4).setCellValue(Math.round(ordinary * 10.0) / 10.0);
-                    row.createCell(5).setCellValue(Math.round(extra * 10.0) / 10.0);
+                        row.createCell(4).setCellValue(Math.round(ordinary * 10.0) / 10.0);
+                        row.createCell(5).setCellValue(Math.round(extra * 10.0) / 10.0);
+                    }
                     row.createCell(6).setCellValue(a.getLateMinutes() != null ? a.getLateMinutes() : 0);
                 }
             }
