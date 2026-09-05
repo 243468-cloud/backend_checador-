@@ -30,4 +30,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findActiveEmployeesByBranch(@Param("branchId") Long branchId);
 
     List<User> findByRoleAndActive(Role role, Boolean active);
+
+    // P3: Conteo de empleados activos para el endpoint de stats (evita llamada extra del frontend)
+    long countByBranchIdAndActiveTrue(Long branchId);
+    long countByActiveTrue();
 }

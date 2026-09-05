@@ -4,6 +4,7 @@ import com.checador.entity.Attendance;
 import com.checador.entity.AttendanceStatus;
 import com.checador.entity.Branch;
 import com.checador.entity.User;
+import com.checador.repository.UserRepository;
 import com.checador.service.AttendanceService;
 import com.checador.service.BranchService;
 import com.checador.service.ReportService;
@@ -34,6 +35,7 @@ public class AttendanceController {
     private final UserService userService;
     private final BranchService branchService;
     private final ReportService reportService;
+    private final UserRepository userRepository;
 
     // ─── Endpoints para EMPLEADO ──────────────────────────────────────────────
 
@@ -118,11 +120,19 @@ public class AttendanceController {
         LocalDate target = date != null ? date : LocalDate.now(MEXICO_ZONE);
         Long branchId = admin.getBranch() != null ? admin.getBranch().getId() : null;
         AttendanceService.DashboardStats stats = attendanceService.getDashboardStats(branchId, target);
+
+        // P3: Contar empleados activos de la sucursal directamente aquí para evitar
+        // que el frontend haga una segunda llamada a /api/employees solo para .length
+        long totalEmployees = branchId != null
+                ? userRepository.countByBranchIdAndActiveTrue(branchId)
+                : userRepository.countByActiveTrue();
+
         Map<String, Object> res = new java.util.HashMap<>();
         res.put("onTime", stats.onTime());
         res.put("late", stats.late());
         res.put("absent", stats.absent());
         res.put("date", target.toString());
+        res.put("totalEmployees", totalEmployees); // nuevo campo
         return ResponseEntity.ok(res);
     }
 

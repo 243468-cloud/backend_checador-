@@ -110,6 +110,28 @@ public class AuthController {
         }
     }
 
+    /**
+     * P7 — Valida la sesión activa y devuelve el perfil del usuario autenticado.
+     * El frontend lo llama al restaurar sesión para evitar confiar ciegamente en localStorage.
+     * Spring Security ya validó el JWT antes de llegar aquí (vía JwtAuthFilter).
+     */
+    @GetMapping("/me")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<?> getMe(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "No autenticado"));
+        }
+        Map<String, Object> res = new java.util.HashMap<>();
+        res.put("role", user.getRole().name());
+        res.put("fullName", user.getFullName());
+        res.put("userId", user.getId());
+        res.put("branchId", user.getBranch() != null ? user.getBranch().getId() : null);
+        res.put("branchName", user.getBranch() != null ? user.getBranch().getName() : null);
+        res.put("shiftType", user.getShiftType() != null ? user.getShiftType().name() : null);
+        return ResponseEntity.ok(res);
+    }
+
+
     public record LoginRequest(
             @NotBlank(message = "El nombre de usuario es requerido") String username,
             @NotBlank(message = "La contraseña es requerida") String password
