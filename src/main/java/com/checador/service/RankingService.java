@@ -158,9 +158,12 @@ public class RankingService {
             }
         }
 
-        // Helper to build EmployeeRankDTO
-        // Base score rule: 0 attendances = 0.0% score.
-        // Otherwise: 100 - (lateCount * 5.0) - (lateMinutes * 0.5) - (absentCount * 15.0)
+        // Regla de score:
+        //   100 puntos base
+        //   - 5 pts por cada día con tardanza (lateCount)
+        //   - hasta 10 pts por minutos acumulados de retardo (lateMins * 0.2, cap 10)
+        //   - 15 pts por cada falta injustificada (absentCount)
+        //   Quien llega impecable (0 tardanzas, 0 faltas) conserva 100.0 — siempre primero.
         List<EmployeeRankDTO> fortnightRank = employees.stream()
                 .map(emp -> {
                     Long id = emp.getId();
@@ -172,7 +175,9 @@ public class RankingService {
 
                     double score = 0.0;
                     if (attendances > 0) {
-                        double penalty = (lates * 5.0) + (lateMins * 0.5) + (absents * 15.0);
+                        // Cap lateMinutes penalty at 10 pts to avoid one long tardiness destroying an otherwise clean fortnight
+                        double lateMinutesPenalty = Math.min(lateMins * 0.2, 10.0);
+                        double penalty = (lates * 5.0) + lateMinutesPenalty + (absents * 15.0);
                         score = Math.max(0.0, Math.min(100.0, 100.0 - penalty));
                     }
 
@@ -190,12 +195,17 @@ public class RankingService {
                             .score(Math.round(score * 10.0) / 10.0)
                             .build();
                 })
-                .filter(e -> e.getAttendances() > 0) // Strictly require attendances > 0 for podium
-                .sorted(Comparator.comparingInt(EmployeeRankDTO::getOnTimeCount).reversed()
-                        .thenComparingInt(EmployeeRankDTO::getAttendances).reversed()
-                        .thenComparingDouble(EmployeeRankDTO::getScore).reversed()
-                        .thenComparingInt(EmployeeRankDTO::getLateCount)
-                        .thenComparingInt(EmployeeRankDTO::getLateMinutes))
+                .filter(e -> e.getAttendances() > 0) // Solo empleados con al menos 1 asistencia
+                // Fix 1: ordenar por score primero (quien llegó impecable = 100.0 va arriba)
+                // Fix 2: usar static Comparator.comparing() para evitar el bug de .reversed() encadenado en Java
+                .sorted(Comparator
+                        .comparingDouble((EmployeeRankDTO e) -> e.getScore())         // 1) mayor score arriba
+                        .reversed()
+                        .thenComparingInt((EmployeeRankDTO e) -> -e.getOnTimeCount()) // 2) más días puntual
+                        .thenComparingInt((EmployeeRankDTO e) -> e.getLateCount())    // 3) menos tardanzas
+                        .thenComparingInt((EmployeeRankDTO e) -> e.getLateMinutes())  // 4) menos minutos de retardo
+                        .thenComparingInt((EmployeeRankDTO e) -> -e.getAttendances()) // 5) más días trabajados
+                )
                 .limit(3)
                 .collect(Collectors.toList());
 
@@ -210,7 +220,9 @@ public class RankingService {
 
                     double score = 0.0;
                     if (attendances > 0) {
-                        double penalty = (lates * 5.0) + (lateMins * 0.5) + (absents * 15.0);
+                        // Misma fórmula que la quincenal — cap en 10 pts para minutos de retardo
+                        double lateMinutesPenalty = Math.min(lateMins * 0.2, 10.0);
+                        double penalty = (lates * 5.0) + lateMinutesPenalty + (absents * 15.0);
                         score = Math.max(0.0, Math.min(100.0, 100.0 - penalty));
                     }
 
@@ -228,13 +240,17 @@ public class RankingService {
                             .score(Math.round(score * 10.0) / 10.0)
                             .build();
                 })
-                .filter(e -> e.getAttendances() > 0) // Strictly require attendances > 0 for podium
-                .sorted(Comparator.comparingDouble(EmployeeRankDTO::getScore).reversed()
-                        .thenComparingInt(EmployeeRankDTO::getOnTimeCount).reversed()
-                        .thenComparingInt(EmployeeRankDTO::getAttendances).reversed()
-                        .thenComparingInt(EmployeeRankDTO::getLateCount)
-                        .thenComparingInt(EmployeeRankDTO::getLateMinutes)
-                        .thenComparingInt(EmployeeRankDTO::getAbsentCount))
+                .filter(e -> e.getAttendances() > 0) // Solo empleados con al menos 1 asistencia
+                // Fix 2: static Comparator.comparing() evita el bug de .reversed() encadenado en Java
+                .sorted(Comparator
+                        .comparingDouble((EmployeeRankDTO e) -> e.getScore())         // 1) mayor score arriba
+                        .reversed()
+                        .thenComparingInt((EmployeeRankDTO e) -> -e.getOnTimeCount()) // 2) más días puntual
+                        .thenComparingInt((EmployeeRankDTO e) -> e.getLateCount())    // 3) menos tardanzas
+                        .thenComparingInt((EmployeeRankDTO e) -> e.getLateMinutes())  // 4) menos minutos de retardo
+                        .thenComparingInt((EmployeeRankDTO e) -> e.getAbsentCount())  // 5) menos faltas
+                        .thenComparingInt((EmployeeRankDTO e) -> -e.getAttendances()) // 6) más días trabajados
+                )
                 .limit(3)
                 .collect(Collectors.toList());
 
