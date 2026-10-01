@@ -50,15 +50,42 @@ public class ReportController {
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> downloadExcel(@AuthenticationPrincipal User admin,
                                                  @RequestParam int year,
-                                                 @RequestParam int month) throws IOException {
+                                                 @RequestParam int month,
+                                                 @RequestParam(required = false) String periodType,
+                                                 @RequestParam(required = false) Integer subPeriod) throws IOException {
         Long branchId = getBranchIdSafely(admin);
         String branchName = getBranchNameSafely(admin);
         List<Attendance> records = attendanceService.getMonthlyAttendanceByBranch(branchId, year, month);
-        byte[] excel = reportService.generateExcelReport(records, branchName, month, year);
+
+        String periodLabel = month + "/" + year;
+        if (periodType != null && subPeriod != null && !"MONTHLY".equals(periodType)) {
+            if ("BIWEEKLY".equals(periodType)) periodLabel = "Quincena " + subPeriod + " de " + month + "/" + year;
+            else if ("WEEKLY".equals(periodType)) periodLabel = "Semana " + subPeriod + " de " + month + "/" + year;
+
+            records = records.stream().filter(a -> {
+                int day = a.getAttendanceDate().getDayOfMonth();
+                if ("BIWEEKLY".equals(periodType)) {
+                    if (subPeriod == 1) return day >= 1 && day <= 15;
+                    if (subPeriod == 2) return day >= 16;
+                } else if ("WEEKLY".equals(periodType)) {
+                    if (subPeriod == 1) return day >= 1 && day <= 7;
+                    if (subPeriod == 2) return day >= 8 && day <= 14;
+                    if (subPeriod == 3) return day >= 15 && day <= 21;
+                    if (subPeriod == 4) return day >= 22;
+                }
+                return true;
+            }).toList();
+        }
+
+        byte[] excel = reportService.generateExcelReport(records, branchName, month, year, periodLabel);
+
+        String filename = String.format("asistencia-%s-%d-%02d.xlsx", branchName.replace(" ", "_"), year, month);
+        if (periodType != null && subPeriod != null && !"MONTHLY".equals(periodType)) {
+             filename = String.format("asistencia-%s-%s-%d-%d-%02d.xlsx", branchName.replace(" ", "_"), periodType.toLowerCase(), subPeriod, year, month);
+        }
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        String.format("attachment; filename=asistencia-%s-%d-%02d.xlsx", branchName.replace(" ", "_"), year, month))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                 .body(excel);
     }

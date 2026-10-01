@@ -1,5 +1,7 @@
 package com.checador.security;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,13 +10,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Rate limiter para endpoints sensibles (login).
  * Permite máx. 5 intentos por IP por ventana de 60 segundos.
- * Usa sliding window con ConcurrentHashMap — sin dependencias externas.
+ * Utiliza Caffeine Cache para limpiar automáticamente y evitar memory leaks.
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -23,7 +25,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final long WINDOW_MS    = 60_000L; // 1 minuto
 
     // IP → lista de timestamps de peticiones recientes
-    private final ConcurrentHashMap<String, CopyOnWriteArrayList<Long>> attempts = new ConcurrentHashMap<>();
+    private final Cache<String, CopyOnWriteArrayList<Long>> attemptsCache = Caffeine.newBuilder()
+            .expireAfterWrite(1, TimeUnit.MINUTES)
+            .build();
 
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
@@ -38,14 +42,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String ip = resolveClientIp(req);
         long now  = System.currentTimeMillis();
 
-        attempts.compute(ip, (k, timestamps) -> {
-            if (timestamps == null) timestamps = new CopyOnWriteArrayList<>();
-            // Deslizar ventana: eliminar entradas antiguas
-            timestamps.removeIf(t -> (now - t) > WINDOW_MS);
-            return timestamps;
-        });
+        CopyOnWriteArrayList<Long> ts = attemptsCache.get(ip, k -> new CopyOnWriteArrayList<>());
+        
+        // Deslizar ventana: eliminar entradas antiguas
+        ts.removeIf(t -> (now - t) > WINDOW_MS);
 
-        CopyOnWriteArrayList<Long> ts = attempts.get(ip);
         if (ts.size() >= MAX_REQUESTS) {
             res.setStatus(429);
             res.setContentType("application/json;charset=UTF-8");

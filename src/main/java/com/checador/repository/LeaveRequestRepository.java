@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 
 @Repository
@@ -18,9 +19,11 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     /** Solicitudes pendientes de una sucursal (para admin). */
+    @EntityGraph(attributePaths = {"user", "branch"})
     List<LeaveRequest> findByBranchIdAndStatusOrderByCreatedAtDesc(Long branchId, LeaveStatus status);
 
     /** Todas las solicitudes de una sucursal (para admin). */
+    @EntityGraph(attributePaths = {"user", "branch"})
     List<LeaveRequest> findByBranchIdOrderByCreatedAtDesc(Long branchId);
 
     @Modifying

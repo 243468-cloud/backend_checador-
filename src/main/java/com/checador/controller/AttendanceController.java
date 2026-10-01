@@ -172,14 +172,41 @@ public class AttendanceController {
     @GetMapping("/admin/payroll")
     public ResponseEntity<?> downloadPayroll(@AuthenticationPrincipal User admin,
                                               @RequestParam int year,
-                                              @RequestParam int month) {
+                                              @RequestParam int month,
+                                              @RequestParam(required = false) String periodType,
+                                              @RequestParam(required = false) Integer subPeriod) {
         try {
             Long branchId   = admin.getBranch() != null ? admin.getBranch().getId() : null;
             String branch   = admin.getBranch() != null ? admin.getBranch().getName() : "Todas";
             List<Attendance> records = attendanceService.getMonthlyAttendanceByBranch(branchId, year, month);
-            byte[] excel = reportService.generatePayrollReport(records, branch, month, year);
+
+            String periodLabel = month + "/" + year;
+            if (periodType != null && subPeriod != null && !"MONTHLY".equals(periodType)) {
+                if ("BIWEEKLY".equals(periodType)) periodLabel = "Quincena " + subPeriod + " de " + month + "/" + year;
+                else if ("WEEKLY".equals(periodType)) periodLabel = "Semana " + subPeriod + " de " + month + "/" + year;
+
+                records = records.stream().filter(a -> {
+                    int day = a.getAttendanceDate().getDayOfMonth();
+                    if ("BIWEEKLY".equals(periodType)) {
+                        if (subPeriod == 1) return day >= 1 && day <= 15;
+                        if (subPeriod == 2) return day >= 16;
+                    } else if ("WEEKLY".equals(periodType)) {
+                        if (subPeriod == 1) return day >= 1 && day <= 7;
+                        if (subPeriod == 2) return day >= 8 && day <= 14;
+                        if (subPeriod == 3) return day >= 15 && day <= 21;
+                        if (subPeriod == 4) return day >= 22;
+                    }
+                    return true;
+                }).toList();
+            }
+
+            byte[] excel = reportService.generatePayrollReport(records, branch, month, year, periodLabel);
 
             String filename = "prenomina_" + month + "_" + year + ".xlsx";
+            if (periodType != null && subPeriod != null && !"MONTHLY".equals(periodType)) {
+                 filename = "prenomina_" + periodType.toLowerCase() + "_" + subPeriod + "_" + month + "_" + year + ".xlsx";
+            }
+
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))

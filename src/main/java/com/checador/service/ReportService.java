@@ -25,10 +25,10 @@ public class ReportService {
     /**
      * Genera un archivo Excel con el reporte mensual de asistencia.
      */
-    public byte[] generateExcelReport(List<Attendance> records, String branchName, int month, int year) throws IOException {
+    public byte[] generateExcelReport(List<Attendance> records, String branchName, int month, int year, String periodLabel) throws IOException {
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             // 1. Hoja de Resumen (primera)
-            addSummarySheet(wb, records, branchName, month, year);
+            addSummarySheet(wb, records, branchName, periodLabel);
 
             // 2. Hoja de Asistencia General
             Sheet sheet = wb.createSheet("Asistencia General");
@@ -52,7 +52,7 @@ public class ReportService {
             // Período
             Row periodRow = sheet.createRow(1);
             Cell periodCell = periodRow.createCell(0);
-            periodCell.setCellValue("Período: " + month + "/" + year);
+            periodCell.setCellValue("Período: " + periodLabel);
             sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 7));
 
             // Encabezados
@@ -164,7 +164,7 @@ public class ReportService {
         }
     }
 
-    private void addSummarySheet(XSSFWorkbook wb, List<Attendance> records, String branchName, int month, int year) {
+    private void addSummarySheet(XSSFWorkbook wb, List<Attendance> records, String branchName, String periodLabel) {
         Sheet summary = wb.createSheet("Resumen");
 
         long onTime = records.stream().filter(a -> a.getStatus() == AttendanceStatus.ON_TIME).count();
@@ -175,7 +175,7 @@ public class ReportService {
 
         String[][] data = {
             {"Sucursal", branchName},
-            {"Período", month + "/" + year},
+            {"Período", periodLabel},
             {"Total registros", String.valueOf(total)},
             {"Puntual", String.valueOf(onTime)},
             {"Tardanza", String.valueOf(late)},
@@ -196,7 +196,7 @@ public class ReportService {
      * Genera el reporte de Pre-Nómina (Incidencias) agrupado por empleado.
      * Columnas: Horas Ordinarias, Horas Extra, Min. Retardo, Faltas Injustificadas, Faltas Justificadas.
      */
-    public byte[] generatePayrollReport(List<Attendance> records, String branchName, int month, int year) throws IOException {
+    public byte[] generatePayrollReport(List<Attendance> records, String branchName, int month, int year, String periodLabel) throws IOException {
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
 
             CellStyle titleStyle  = createTitleStyle(wb);
@@ -225,7 +225,7 @@ public class ReportService {
             // Título
             Row t0 = global.createRow(0);
             Cell tc = t0.createCell(0);
-            tc.setCellValue("Pre-Nómina — " + branchName + " — " + month + "/" + year);
+            tc.setCellValue("Pre-Nómina — " + branchName + " — " + periodLabel);
             tc.setCellStyle(titleStyle);
             global.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
 
