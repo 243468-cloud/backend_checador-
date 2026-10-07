@@ -67,17 +67,12 @@ public class AttendanceService {
 
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = employee.getShiftType();
-        // El horario base se obtiene siempre del ShiftType del empleado.
-        // El roster/matriz semanal es puramente administrativo/visual y NO sobreescribe
-        // la hora de entrada para efectos de validación de retardo (desacoplamiento).
+        // El horario base se obtiene del ShiftType del empleado por defecto.
         LocalTime scheduledStart = getShiftStart(shift);
         int toleranceMinutes = 10;      // minutos de gracia DESPUÉS de la hora de entrada
         int earlyArrivalWindow = 30;    // minutos de antelación máxima considerados ON_TIME
 
-        // ─── Reconocimiento dinámico de exención de retardos en la Matriz Semanal ───
-        // NOTA: El roster ya NO modifica scheduledStart; solo puede exentar de retardo
-        // (ej. CAMBIO_TURNO autorizado por Super Admin). El horario del roster es
-        // meramente informativo y no afecta la lógica del checador.
+        // ─── Validación dinámica del horario según la Matriz Semanal (Roster) ───
         boolean isExemptFromLate = false;
         try {
             LocalDate weekStart = today.with(java.time.DayOfWeek.MONDAY);
@@ -88,9 +83,13 @@ public class AttendanceService {
                     .findRosterForEmployeeDay(branch.getId(), weekStart, dayIdx, empFirstName);
 
             for (com.checador.entity.ScheduleRoster r : rosterCells) {
-                // Solo se lee la exención, NO el horario del roster
-                if (r.getStatusType() == com.checador.entity.ScheduleRoster.RosterStatus.CAMBIO_TURNO
-                    || (r.getReason() != null && r.getReason().toUpperCase().contains("EXENTO"))) {
+                // Si el roster define una hora explícita, usamos esa hora
+                if (r.getShiftStartTime() != null && !r.getShiftStartTime().isBlank()) {
+                    scheduledStart = LocalTime.parse(r.getShiftStartTime());
+                }
+
+                // Conservar la opción de exentar manualmente
+                if ((r.getReason() != null && r.getReason().toUpperCase().contains("EXENTO"))) {
                     isExemptFromLate = true;
                 }
             }
@@ -168,10 +167,25 @@ public class AttendanceService {
 
         LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
-        // El horario de salida se obtiene siempre del ShiftType del empleado (desacoplado del roster).
+        // El horario de salida se obtiene del ShiftType del empleado por defecto.
         LocalTime scheduledEnd = getShiftEnd(shift);
 
-        // NOTA: El roster/matriz semanal NO sobreescribe scheduledEnd; es meramente visual.
+        // ─── Validación dinámica del horario según la Matriz Semanal (Roster) ───
+        try {
+            LocalDate weekStart = today.with(java.time.DayOfWeek.MONDAY);
+            int dayIdx = today.getDayOfWeek().getValue() - 1;
+            String empFirstName = employee.getFullName().split(" ")[0];
+
+            List<com.checador.entity.ScheduleRoster> rosterCells = rosterRepository
+                    .findRosterForEmployeeDay(branch.getId(), weekStart, dayIdx, empFirstName);
+
+            for (com.checador.entity.ScheduleRoster r : rosterCells) {
+                // Si el roster define una hora explícita de salida, usamos esa
+                if (r.getShiftEndTime() != null && !r.getShiftEndTime().isBlank()) {
+                    scheduledEnd = LocalTime.parse(r.getShiftEndTime());
+                }
+            }
+        } catch (Exception ignored) {}
 
         long elapsedHours = java.time.Duration.between(attendance.getCheckInTime(), now).toHours();
         if (elapsedHours >= 16) {
