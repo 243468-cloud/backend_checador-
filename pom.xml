@@ -143,6 +143,12 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- Spring Boot Mail for Automatic Reports -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
