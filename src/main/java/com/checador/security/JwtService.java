@@ -34,11 +34,28 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
+    public Long extractTenantId(String token) {
+        Object tenantId = extractClaim(token, claims -> claims.get("tenantId"));
+        if (tenantId != null) {
+            if (tenantId instanceof Integer) {
+                return ((Integer) tenantId).longValue();
+            } else if (tenantId instanceof Long) {
+                return (Long) tenantId;
+            } else if (tenantId instanceof String) {
+                return Long.parseLong((String) tenantId);
+            }
+        }
+        return null;
+    }
+
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         if (userDetails instanceof com.checador.entity.User user) {
             claims.put("role", user.getRole().name());
             claims.put("fullName", user.getFullName());
+            if (user.getTenantId() != null) {
+                claims.put("tenantId", user.getTenantId());
+            }
             if (user.getBranch() != null) {
                 claims.put("branchId", user.getBranch().getId());
                 claims.put("branchName", user.getBranch().getName());

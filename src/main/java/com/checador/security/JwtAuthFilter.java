@@ -45,6 +45,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         try {
             final String username = jwtService.extractUsername(jwt);
+            final Long tenantId = jwtService.extractTenantId(jwt);
+
+            if (tenantId != null) {
+                TenantContext.setTenantId(tenantId);
+            }
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
@@ -59,6 +64,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             // Token inválido o expirado — continuar sin autenticar
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }
