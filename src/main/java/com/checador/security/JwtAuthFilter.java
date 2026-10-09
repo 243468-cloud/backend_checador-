@@ -39,7 +39,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         if (jwt == null) {
-            filterChain.doFilter(request, response);
+            try {
+                filterChain.doFilter(request, response);
+            } finally {
+                TenantContext.clear();
+            }
             return;
         }
 

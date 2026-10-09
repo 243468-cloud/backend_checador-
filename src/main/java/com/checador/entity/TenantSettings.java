@@ -31,4 +31,20 @@ public class TenantSettings extends BaseEntity {
     
     @Column(name = "tolerance_minutes")
     private Integer toleranceMinutes = 10;
+
+    // --- Permisos y Módulos de la Empresa ---
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subscription_status", length = 20)
+    private SubscriptionStatus subscriptionStatus = SubscriptionStatus.ACTIVE;
+
+    @Column(name = "is_gps_enabled")
+    private Boolean isGpsEnabled = true;
+
+    @Column(name = "is_payroll_enabled")
+    private Boolean isPayrollEnabled = false;
+
+    public enum SubscriptionStatus {
+        ACTIVE, SUSPENDED, CANCELED, TRIAL
+    }
 }
