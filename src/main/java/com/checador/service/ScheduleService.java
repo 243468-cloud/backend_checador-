@@ -73,11 +73,17 @@ public class ScheduleService {
      * El frontend reconstruye la grilla a partir de esta lista.
      */
     public List<ScheduleRoster> getRoster(Long branchId, LocalDate weekStart) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        branchRepository.findByIdAndTenantId(branchId, tenantId)
+            .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
         return rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
     }
 
     /** Semanas que ya tienen datos guardados para el selector de semana. */
     public List<LocalDate> getAvailableWeeks(Long branchId) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        branchRepository.findByIdAndTenantId(branchId, tenantId)
+            .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
         return rosterRepository.findDistinctWeekStartsByBranchId(branchId);
     }
 
@@ -94,8 +100,9 @@ public class ScheduleService {
     @Transactional
     public List<ScheduleRoster> saveRoster(Long branchId, LocalDate weekStart,
                                             List<Map<String, Object>> cells) {
-        Branch branch = branchRepository.findById(branchId)
-                .orElseThrow(() -> new RuntimeException("Sucursal no encontrada: " + branchId));
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        Branch branch = branchRepository.findByIdAndTenantId(branchId, tenantId)
+            .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
 
         // Eliminar la semana existente y reemplazarla completamente
         rosterRepository.deleteByBranchIdAndWeekStart(branchId, weekStart);

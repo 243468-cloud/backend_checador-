@@ -5,6 +5,7 @@ import com.checador.entity.Role;
 import com.checador.entity.ShiftType;
 import com.checador.entity.User;
 import com.checador.repository.BranchRepository;
+import com.checador.repository.TenantSettingsRepository;
 import com.checador.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
+    private final TenantSettingsRepository tenantSettingsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
 
@@ -39,7 +41,7 @@ public class DataSeeder implements CommandLineRunner {
         // Asegurar que exista al menos la sucursal Via Gourmet
         Branch branch;
         if (branchRepository.count() == 0) {
-            branch = branchRepository.save(Branch.builder()
+            branch = Branch.builder()
                     .name("Via Gourmet")
                     .address("16a Pte. Nte. 304, Av. Cedros 402, Local 9, Fracc. Arboledas, C.P. 29030, Tuxtla Gutiérrez, Chis.")
                     .latitude(16.7599)
@@ -47,13 +49,37 @@ public class DataSeeder implements CommandLineRunner {
                     .radiusMeters(500)
                     .toleranceMinutes(10)
                     .active(true)
-                    .build());
+                    .build();
+            branch.setTenantId(1L);
+            branch = branchRepository.save(branch);
             log.info(" Sucursal Via Gourmet creada automáticamente.");
         } else {
             branch = branchRepository.findAll().get(0);
             if (branch.getRadiusMeters() < 500) {
                 branch.setRadiusMeters(500);
                 branchRepository.save(branch);
+            }
+        }
+
+        // Seed TenantSettings for Via Gourmet (Tenant 1)
+        if (tenantSettingsRepository.findByTenantId(1L).isEmpty()) {
+            com.checador.entity.TenantSettings settings = com.checador.entity.TenantSettings.builder()
+                    .companyName("Vía Gourmet")
+                    .slug("via-gourmet")
+                    .primaryColor("#4F46E5")
+                    .toleranceMinutes(10)
+                    .subscriptionStatus(com.checador.entity.TenantSettings.SubscriptionStatus.ACTIVE)
+                    .activeModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals", "reports", "rankings")))
+                    .build();
+            settings.setTenantId(1L);
+            tenantSettingsRepository.save(settings);
+            log.info(" Configuración de Vía Gourmet creada automáticamente.");
+        } else {
+            // Asegurar que tengan todos los módulos
+            com.checador.entity.TenantSettings settings = tenantSettingsRepository.findByTenantId(1L).get();
+            if (settings.getActiveModules().size() < 4) {
+                settings.getActiveModules().addAll(java.util.List.of("schedules", "lateArrivals", "reports", "rankings"));
+                tenantSettingsRepository.save(settings);
             }
         }
 
@@ -66,17 +92,19 @@ public class DataSeeder implements CommandLineRunner {
         log.info("Inicializando usuarios de prueba...");
 
         // Crear Superusuario Humberto
-        userRepository.save(User.builder()
+        User humberto = User.builder()
                 .username("humberto")
                 .password(passwordEncoder.encode("Arboledas2016"))
                 .fullName("Humberto")
                 .email("humberto@viagourmet.com")
                 .role(Role.SUPERUSER)
                 .active(true)
-                .build());
+                .build();
+        humberto.setTenantId(1L);
+        userRepository.save(humberto);
 
         // Crear Administrador
-        userRepository.save(User.builder()
+        User admin1 = User.builder()
                 .username("admin1")
                 .password(passwordEncoder.encode("Admin@2024"))
                 .fullName("Administrador Central")
@@ -84,10 +112,12 @@ public class DataSeeder implements CommandLineRunner {
                 .role(Role.ADMIN)
                 .branch(branch)
                 .active(true)
-                .build());
+                .build();
+        admin1.setTenantId(1L);
+        userRepository.save(admin1);
 
         // Crear Empleados de prueba
-        userRepository.save(User.builder()
+        User empleado1 = User.builder()
                 .username("empleado1")
                 .password(passwordEncoder.encode("Emp@2024"))
                 .fullName("Juan Pérez García")
@@ -96,9 +126,11 @@ public class DataSeeder implements CommandLineRunner {
                 .branch(branch)
                 .shiftType(ShiftType.MORNING)
                 .active(true)
-                .build());
+                .build();
+        empleado1.setTenantId(1L);
+        userRepository.save(empleado1);
 
-        userRepository.save(User.builder()
+        User empleado2 = User.builder()
                 .username("empleado2")
                 .password(passwordEncoder.encode("Emp@2024"))
                 .fullName("María López Sánchez")
@@ -107,9 +139,11 @@ public class DataSeeder implements CommandLineRunner {
                 .branch(branch)
                 .shiftType(ShiftType.EVENING)
                 .active(true)
-                .build());
+                .build();
+        empleado2.setTenantId(1L);
+        userRepository.save(empleado2);
 
-        userRepository.save(User.builder()
+        User empleado3 = User.builder()
                 .username("empleado3")
                 .password(passwordEncoder.encode("Emp@2024"))
                 .fullName("Carlos Ramírez Torres")
@@ -118,7 +152,9 @@ public class DataSeeder implements CommandLineRunner {
                 .branch(branch)
                 .shiftType(ShiftType.SUNDAY)
                 .active(true)
-                .build());
+                .build();
+        empleado3.setTenantId(1L);
+        userRepository.save(empleado3);
 
         log.info(" Datos de prueba creados exitosamente.");
         log.info(" Usuarios demo creados: superadmin, admin1, empleado1, empleado2, empleado3");

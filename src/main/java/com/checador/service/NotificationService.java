@@ -78,7 +78,8 @@ public class NotificationService {
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void notifySecurityAlert(User employee, String details) {
-        User freshUser = employee != null ? userRepo.findById(employee.getId()).orElse(employee) : null;
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        User freshUser = employee != null ? userRepo.findByIdAndTenantId(employee.getId(), tenantId).orElse(employee) : null;
         String empName = freshUser != null ? freshUser.getFullName() : "Empleado";
         String username = freshUser != null ? freshUser.getUsername() : "desconocido";
         Long branchId = (freshUser != null && freshUser.getBranch() != null) ? freshUser.getBranch().getId() : null;
@@ -116,7 +117,10 @@ public class NotificationService {
 
     @Transactional
     public void markOneRead(Long id) {
-        notifRepo.findById(id).ifPresent(n -> {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        java.util.Optional<Notification> notifOpt = notifRepo.findByIdAndTenantId(id, tenantId);
+        
+        notifOpt.ifPresent(n -> {
             if (!n.isRead()) {
                 n.setReadAt(java.time.LocalDateTime.now(java.time.ZoneId.of("America/Mexico_City")));
                 notifRepo.save(n);

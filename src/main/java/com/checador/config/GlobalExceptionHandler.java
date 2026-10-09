@@ -53,6 +53,12 @@ public class GlobalExceptionHandler {
     }
 
     /** Catch-all — nunca expone stack trace */
+    @ExceptionHandler(com.checador.exception.ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotFound(com.checador.exception.ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleAll(Exception ex) {
         // Log interno (en producción usaría un logger con trace ID)

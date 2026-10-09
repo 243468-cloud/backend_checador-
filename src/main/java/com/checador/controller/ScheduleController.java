@@ -17,6 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/schedules")
 @RequiredArgsConstructor
+@com.checador.security.RequiresModule("schedules")
 public class ScheduleController {
 
     private final ScheduleService scheduleService;

@@ -26,6 +26,9 @@ public class TenantSettings extends BaseEntity {
     @Column(name = "logo_url")
     private String logoUrl;
 
+    @Column(name = "icon_url")
+    private String iconUrl;
+
     @Column(name = "primary_color", length = 20)
     private String primaryColor;
     
@@ -38,11 +41,11 @@ public class TenantSettings extends BaseEntity {
     @Column(name = "subscription_status", length = 20)
     private SubscriptionStatus subscriptionStatus = SubscriptionStatus.ACTIVE;
 
-    @Column(name = "is_gps_enabled")
-    private Boolean isGpsEnabled = true;
-
-    @Column(name = "is_payroll_enabled")
-    private Boolean isPayrollEnabled = false;
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "tenant_modules", joinColumns = @JoinColumn(name = "tenant_id"))
+    @Column(name = "module_name")
+    @Builder.Default
+    private java.util.Set<String> activeModules = new java.util.HashSet<>();
 
     public enum SubscriptionStatus {
         ACTIVE, SUSPENDED, CANCELED, TRIAL

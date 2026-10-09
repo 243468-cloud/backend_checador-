@@ -24,6 +24,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByBranchAndRoleAndActive(Branch branch, Role role, Boolean active);
 
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findByIdAndTenantId(Long id, Long tenantId);
+
     List<User> findByBranchIdAndRole(Long branchId, Role role);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE (:branchId IS NULL OR u.branch.id = :branchId) AND u.role = com.checador.entity.Role.EMPLOYEE AND u.active = true")

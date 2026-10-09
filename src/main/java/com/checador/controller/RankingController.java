@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/ranking")
 @RequiredArgsConstructor
+@com.checador.security.RequiresModule("rankings")
 public class RankingController {
 
     private final RankingService rankingService;

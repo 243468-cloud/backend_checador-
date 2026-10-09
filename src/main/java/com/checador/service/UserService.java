@@ -9,8 +9,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.checador.security.TenantContext;
+import org.springframework.stereotype.Service;
+import com.checador.exception.ResourceNotFoundException;
 
 import java.util.List;
 
@@ -77,8 +79,7 @@ public class UserService implements UserDetailsService {
     @Transactional
     public User updateUser(Long id, String fullName, String email,
                            com.checador.entity.ShiftType shiftType, String profilePicture) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        User user = findById(id);
         user.setFullName(fullName);
         user.setEmail(email);
         if (shiftType != null) user.setShiftType(shiftType);
@@ -88,16 +89,14 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void changePassword(Long id, String newPassword) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        User user = findById(id);
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
 
     @Transactional
     public void toggleActive(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        User user = findById(id);
         user.setActive(!user.getActive());
         userRepository.save(user);
     }
@@ -108,8 +107,7 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void deleteUser(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        User user = findById(id);
         attendanceRepository.deleteByUserId(id);
         pushSubscriptionRepository.deleteByUserId(id);
         leaveRequestRepository.deleteByUserId(id);
@@ -117,7 +115,8 @@ public class UserService implements UserDetailsService {
     }
 
     public User findById(Long id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Long tenantId = TenantContext.getTenantId();
+        return userRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado o acceso denegado"));
     }
 }

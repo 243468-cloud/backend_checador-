@@ -53,8 +53,7 @@ public class CompanyRegistrationService {
                     .primaryColor("#4F46E5") // Color por defecto
                     .toleranceMinutes(10)
                     .subscriptionStatus(TenantSettings.SubscriptionStatus.TRIAL)
-                    .isGpsEnabled(true)
-                    .isPayrollEnabled(false)
+                    .activeModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals")))
                     .build();
             // Sobrescribimos manualmente el tenantId por si el @PrePersist no actúa antes del primer guardado
             tenantSettings.setTenantId(newTenantId);

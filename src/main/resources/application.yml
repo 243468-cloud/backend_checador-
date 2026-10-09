@@ -52,7 +52,7 @@ app:
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}
-    subject: ${VAPID_SUBJECT:mailto:admin@viagourmet.com}
+    subject: ${VAPID_SUBJECT:mailto:admin@master.com}
 
   # Swagger: habilitado solo en perfil 'dev'. En producción (perfil 'prod') se deshabilita.
   swagger:

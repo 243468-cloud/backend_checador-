@@ -37,6 +37,7 @@ public class TenantSettingsService {
         
         if (updatedData.getCompanyName() != null) current.setCompanyName(updatedData.getCompanyName());
         if (updatedData.getLogoUrl() != null) current.setLogoUrl(updatedData.getLogoUrl());
+        if (updatedData.getIconUrl() != null) current.setIconUrl(updatedData.getIconUrl());
         if (updatedData.getPrimaryColor() != null) current.setPrimaryColor(updatedData.getPrimaryColor());
         if (updatedData.getToleranceMinutes() != null) current.setToleranceMinutes(updatedData.getToleranceMinutes());
         

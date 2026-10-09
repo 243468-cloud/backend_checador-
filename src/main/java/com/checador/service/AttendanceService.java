@@ -9,8 +9,10 @@ import com.checador.repository.AttendanceRepository;
 import com.checador.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.checador.security.TenantContext;
+import org.springframework.stereotype.Service;
+import com.checador.exception.ResourceNotFoundException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -286,8 +288,7 @@ public class AttendanceService {
     @Transactional
     public Attendance updateAttendance(Long id, LocalDateTime checkIn, LocalDateTime checkOut,
                                        AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {
-        Attendance a = attendanceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Registro no encontrado"));
+        Attendance a = findById(id);
         if (checkIn != null) a.setCheckInTime(checkIn);
         if (checkOut != null) a.setCheckOutTime(checkOut);
         if (status != null) a.setStatus(status);
@@ -304,8 +305,9 @@ public class AttendanceService {
     @Transactional
     public Attendance createManualAttendance(Long employeeId, LocalDate date, LocalDateTime checkIn, LocalDateTime checkOut,
                                              AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {
-        User employee = userRepository.findById(employeeId)
-                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        User employee = userRepository.findByIdAndTenantId(employeeId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Empleado no encontrado"));
 
         if (attendanceRepository.existsByUserIdAndAttendanceDate(employeeId, date)) {
             throw new IllegalStateException("El empleado ya tiene un registro para esta fecha.");
@@ -333,8 +335,9 @@ public class AttendanceService {
     }
 
     public Attendance findById(Long id) {
-        return attendanceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Registro de asistencia no encontrado"));
+        Long tenantId = TenantContext.getTenantId();
+        return attendanceRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro no encontrado o acceso denegado"));
     }
 
     @Transactional

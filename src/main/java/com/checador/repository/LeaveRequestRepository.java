@@ -18,6 +18,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     /** Solicitudes de un empleado específico. */
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    java.util.Optional<LeaveRequest> findByIdAndTenantId(Long id, Long tenantId);
+
     /** Solicitudes pendientes de una sucursal (para admin). */
     @EntityGraph(attributePaths = {"user", "branch"})
     List<LeaveRequest> findByBranchIdAndStatusOrderByCreatedAtDesc(Long branchId, LeaveStatus status);

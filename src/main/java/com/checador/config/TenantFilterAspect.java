@@ -17,7 +17,7 @@ public class TenantFilterAspect {
         this.entityManager = entityManager;
     }
 
-    @Before("execution(* com.checador.repository..*(..))")
+    @Before("within(@org.springframework.stereotype.Service *) || @annotation(org.springframework.transaction.annotation.Transactional)")
     public void enableTenantFilter() {
         Long tenantId = TenantContext.getTenantId();
         if (tenantId != null) {

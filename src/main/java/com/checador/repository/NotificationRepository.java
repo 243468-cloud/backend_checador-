@@ -46,4 +46,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     void markAllRead(
             @Param("role") String role,
             @Param("branchId") Long branchId);
+
+    java.util.Optional<Notification> findByIdAndTenantId(Long id, Long tenantId);
 }

@@ -20,6 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
+@com.checador.security.RequiresModule("reports")
 public class ReportController {
 
     private final AttendanceService attendanceService;

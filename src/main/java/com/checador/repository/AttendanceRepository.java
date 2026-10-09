@@ -19,6 +19,8 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE a.user.id = :userId AND a.attendanceDate = :date")
     Optional<Attendance> findByUserIdAndAttendanceDate(@Param("userId") Long userId, @Param("date") LocalDate date);
 
+    Optional<Attendance> findByIdAndTenantId(Long id, Long tenantId);
+
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE a.user.id = :userId AND a.checkOutTime IS NULL ORDER BY a.checkInTime DESC")
     List<Attendance> findActiveAttendanceList(@Param("userId") Long userId);
 

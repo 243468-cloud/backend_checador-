@@ -3,8 +3,10 @@ package com.checador.service;
 import com.checador.entity.Branch;
 import com.checador.repository.BranchRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.checador.security.TenantContext;
+import org.springframework.stereotype.Service;
+import com.checador.exception.ResourceNotFoundException;
 
 import java.util.List;
 
@@ -19,8 +21,9 @@ public class BranchService {
     }
 
     public Branch findById(Long id) {
-        return branchRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"));
+        Long tenantId = TenantContext.getTenantId();
+        return branchRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
     }
 
     @Transactional

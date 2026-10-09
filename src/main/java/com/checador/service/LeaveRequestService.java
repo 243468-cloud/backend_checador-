@@ -8,9 +8,10 @@ import com.checador.entity.User;
 import com.checador.repository.BranchRepository;
 import com.checador.repository.LeaveRequestRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.checador.security.TenantContext;
+import org.springframework.stereotype.Service;
+import com.checador.exception.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -28,8 +29,9 @@ public class LeaveRequestService {
     public LeaveRequest createRequest(User employee, LeaveType type,
                                       LocalDate startDate, LocalDate endDate,
                                       String reason, String evidenceUrl) {
-        Branch branch = branchRepository.findById(employee.getBranch().getId())
-                .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"));
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        Branch branch = branchRepository.findByIdAndTenantId(employee.getBranch().getId(), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
 
         LeaveRequest req = LeaveRequest.builder()
                 .user(employee)
@@ -85,8 +87,9 @@ public class LeaveRequestService {
     // ─── Helper ───────────────────────────────────────────────────────────────
 
     private LeaveRequest findOrThrow(Long id) {
-        return leaveRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Solicitud no encontrada: " + id));
+        Long tenantId = TenantContext.getTenantId();
+        return leaveRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada o acceso denegado"));
     }
 
     /** Acceso público para que el controller pueda validar scope de sucursal. */
