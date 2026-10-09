@@ -6,6 +6,7 @@ import com.checador.entity.Branch;
 import com.checador.entity.ShiftType;
 import com.checador.entity.User;
 import com.checador.repository.AttendanceRepository;
+import com.checador.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ import java.util.Optional;
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
+    private final UserRepository userRepository;
     private final com.checador.repository.ScheduleRosterRepository rosterRepository;
     private final GeoService geoService;
     private final ShiftConfigService shiftConfigService;
@@ -294,6 +296,40 @@ public class AttendanceService {
         if (extraHours != null) a.setExtraHours(extraHours);
         a.calculateHoursWorked();
         return attendanceRepository.save(a);
+    }
+
+    /**
+     * Crea un registro de asistencia de forma manual (solo admin).
+     */
+    @Transactional
+    public Attendance createManualAttendance(Long employeeId, LocalDate date, LocalDateTime checkIn, LocalDateTime checkOut,
+                                             AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {
+        User employee = userRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Empleado no encontrado"));
+
+        if (attendanceRepository.existsByUserIdAndAttendanceDate(employeeId, date)) {
+            throw new IllegalStateException("El empleado ya tiene un registro para esta fecha.");
+        }
+
+        Attendance attendance = Attendance.builder()
+                .user(employee)
+                .branch(employee.getBranch())
+                .attendanceDate(date)
+                .shiftType(employee.getShiftType())
+                .checkInTime(checkIn)
+                .checkOutTime(checkOut)
+                .status(status != null ? status : AttendanceStatus.EXCUSED)
+                .notes(notes != null ? notes : "Registro manual por administrador")
+                .lateMinutes(lateMinutes != null ? lateMinutes : 0)
+                .extraHours(extraHours != null ? extraHours : 0.0)
+                .checkInLatitude(employee.getBranch() != null ? employee.getBranch().getLatitude() : 0.0)
+                .checkInLongitude(employee.getBranch() != null ? employee.getBranch().getLongitude() : 0.0)
+                .checkOutLatitude(employee.getBranch() != null ? employee.getBranch().getLatitude() : 0.0)
+                .checkOutLongitude(employee.getBranch() != null ? employee.getBranch().getLongitude() : 0.0)
+                .build();
+
+        attendance.calculateHoursWorked();
+        return attendanceRepository.save(attendance);
     }
 
     public Attendance findById(Long id) {

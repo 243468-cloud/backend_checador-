@@ -136,6 +136,19 @@ public class AttendanceController {
         return ResponseEntity.ok(res);
     }
 
+    @PostMapping("/admin")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<?> createManualAttendance(@AuthenticationPrincipal User admin,
+                                                    @RequestBody CreateManualRequest req) {
+        try {
+            Attendance a = attendanceService.createManualAttendance(
+                    req.employeeId(), req.date(), req.checkInTime(), req.checkOutTime(), req.status(), req.notes(), req.lateMinutes(), req.extraHours());
+            return ResponseEntity.ok(toResponse(a));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PutMapping("/admin/{id}")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> updateAttendance(@PathVariable Long id,
@@ -240,4 +253,6 @@ public class AttendanceController {
     public record CheckRequest(@NotNull Double latitude, @NotNull Double longitude) {}
     public record UpdateRequest(LocalDateTime checkInTime, LocalDateTime checkOutTime,
                                 AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {}
+    public record CreateManualRequest(@NotNull Long employeeId, @NotNull LocalDate date, LocalDateTime checkInTime, LocalDateTime checkOutTime,
+                                      AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {}
 }
