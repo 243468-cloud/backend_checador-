@@ -25,8 +25,8 @@ public class RankingService {
     private final UserRepository userRepository;
 
     // Default reward configuration parameters
-    private String fortnightReward = "Bebida sin alcohol (Smoothie / Mocktail Gourmet)";
-    private String monthlyReward = "Platillo Especial Vía Gourmet a Elección";
+    private String fortnightReward = "Bebida a Elección";
+    private String monthlyReward = "Platillo Especial a Elección";
     private int fortnightMinAttendance = 12;
     private int monthlyMaxLateMinutes = 0;
 
@@ -185,7 +185,7 @@ public class RankingService {
                             .id(id)
                             .name(emp.getFullName() != null && !emp.getFullName().isBlank() ? emp.getFullName() : emp.getUsername())
                             .username(emp.getUsername())
-                            .branch(emp.getBranch() != null ? emp.getBranch().getName() : "Vía Gourmet")
+                            .branch(emp.getBranch() != null ? emp.getBranch().getName() : "Sucursal Principal")
                             .shift(emp.getShiftType() != null ? emp.getShiftType().name() : "MATUTINO")
                             .attendances(attendances)
                             .onTimeCount(onTime)
@@ -230,7 +230,7 @@ public class RankingService {
                             .id(id)
                             .name(emp.getFullName() != null && !emp.getFullName().isBlank() ? emp.getFullName() : emp.getUsername())
                             .username(emp.getUsername())
-                            .branch(emp.getBranch() != null ? emp.getBranch().getName() : "Vía Gourmet")
+                            .branch(emp.getBranch() != null ? emp.getBranch().getName() : "Sucursal Principal")
                             .shift(emp.getShiftType() != null ? emp.getShiftType().name() : "MATUTINO")
                             .attendances(attendances)
                             .onTimeCount(onTime)
