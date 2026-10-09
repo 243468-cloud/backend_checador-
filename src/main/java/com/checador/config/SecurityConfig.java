@@ -50,7 +50,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/**", "/api/branches/public", "/api/settings/public/**", "/error").permitAll()
+                .requestMatchers("/api/auth/**", "/api/public/**", "/api/branches/public", "/api/settings/public/**", "/error").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                 // ── Superusuario exclusivo ────────────────────────────────
@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/admins/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/reports/global/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/audit/**").hasRole("SUPERUSER")
+                .requestMatchers("/api/settings/all").hasRole("SUPERUSER")
 
                 // ── Horarios: lectura para EMPLOYEE, ADMIN y SUPERUSER; escritura solo ADMIN/SUPERUSER ──
                 .requestMatchers(HttpMethod.GET,    "/api/schedules/**").hasAnyRole("EMPLOYEE", "ADMIN", "SUPERUSER")

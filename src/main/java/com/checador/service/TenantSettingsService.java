@@ -42,4 +42,21 @@ public class TenantSettingsService {
         
         return repository.save(current);
     }
+
+    /**
+     * PRIVADO (Solo SUPERUSER): Obtiene todas las empresas registradas.
+     */
+    public java.util.List<TenantSettings> getAllTenantsForSuperadmin() {
+        Long currentTenant = TenantContext.getTenantId();
+        try {
+            // Limpiamos el contexto para saltarnos el TenantFilterAspect
+            TenantContext.clear();
+            return repository.findAll();
+        } finally {
+            // Restauramos el tenantId original
+            if (currentTenant != null) {
+                TenantContext.setTenantId(currentTenant);
+            }
+        }
+    }
 }

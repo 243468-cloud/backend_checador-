@@ -36,4 +36,12 @@ public class TenantSettingsController {
     public ResponseEntity<TenantSettings> updateCurrentSettings(@RequestBody TenantSettings settings) {
         return ResponseEntity.ok(service.updateCurrentSettings(settings));
     }
+
+    /**
+     * PRIVADO (Solo SUPERUSER): Obtiene todas las empresas registradas.
+     */
+    @GetMapping("/all")
+    public ResponseEntity<java.util.List<TenantSettings>> getAllTenants() {
+        return ResponseEntity.ok(service.getAllTenantsForSuperadmin());
+    }
 }
