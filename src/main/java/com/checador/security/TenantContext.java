@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 public class TenantContext {
     private static final Logger logger = LoggerFactory.getLogger(TenantContext.class);
     private static final ThreadLocal<Long> CURRENT_TENANT = new ThreadLocal<>();
+    public static volatile boolean systemReady = false;
 
     public static void setTenantId(Long tenantId) {
         logger.debug("Setting tenantId to {}", tenantId);

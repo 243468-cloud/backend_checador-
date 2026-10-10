@@ -26,52 +26,51 @@ public class WeeklyReportScheduler {
     private final ReportService reportService;
     private final MailService mailService;
 
-    // Se ejecuta todos los Lunes a las 9:00 AM (Zona horaria por defecto del servidor)
-    @Scheduled(cron = "0 0 9 * * MON")
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    // Se ejecuta externamente mediante el endpoint /api/reports/global/trigger-weekly
     public void generateAndSendWeeklyReports() {
         logger.info("Iniciando generación automática de reportes semanales...");
         
-        // El reporte abarca la semana anterior (Lunes a Domingo)
         LocalDate endOfLastWeek = LocalDate.now().minusDays(1); // Domingo
         LocalDate startOfLastWeek = endOfLastWeek.minusDays(6); // Lunes
-
         int year = startOfLastWeek.getYear();
         int month = startOfLastWeek.getMonthValue();
         String periodLabel = "Semana del " + startOfLastWeek + " al " + endOfLastWeek;
 
-        List<Branch> branches = branchRepository.findAll();
+        // Obtener todos los tenants registrados usando JdbcTemplate para evadir el @TenantId global
+        List<Long> tenantIds = jdbcTemplate.queryForList("SELECT tenant_id FROM tenant_settings", Long.class);
 
-        for (Branch branch : branches) {
+        for (Long tenantId : tenantIds) {
             try {
-                // 1. Obtener la asistencia de la sucursal de ese mes/semana
-                // NOTA: Para no refactorizar el servicio de asitencia, usamos el método mensual
-                // y podríamos filtrarlo o confiar en que el gerente recibe el corte del mes hasta la fecha.
-                // Aquí usamos el método mensual completo.
-                var records = attendanceService.getMonthlyAttendanceByBranch(branch.getId(), year, month);
+                com.checador.security.TenantContext.setTenantId(tenantId);
+                List<Branch> branches = branchRepository.findAll();
 
-                if (records.isEmpty()) {
-                    continue;
-                }
+                for (Branch branch : branches) {
+                    try {
+                        var records = attendanceService.getMonthlyAttendanceByBranch(branch.getId(), year, month);
+                        if (records.isEmpty()) continue;
 
-                // 2. Generar Excel
-                byte[] excelData = reportService.generateExcelReport(records, branch.getName(), month, year, periodLabel);
+                        byte[] excelData = reportService.generateExcelReport(records, branch.getName(), month, year, periodLabel);
+                        List<User> admins = userRepository.findByBranchIdAndRole(branch.getId(), Role.ADMIN);
 
-                // 3. Buscar a los administradores de esta sucursal
-                List<User> admins = userRepository.findByBranchIdAndRole(branch.getId(), Role.ADMIN);
+                        for (User admin : admins) {
+                            if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
+                                String subject = "Reporte Automático de Asistencia - " + branch.getName();
+                                String text = "<p>Hola " + admin.getFullName() + ",</p>" +
+                                              "<p>Adjunto encontrarás el reporte de asistencia de la <b>" + periodLabel + "</b>.</p>" +
+                                              "<br><p>Saludos,<br>Sistema Checador</p>";
 
-                for (User admin : admins) {
-                    if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
-                        String subject = "Reporte Automático de Asistencia - " + branch.getName();
-                        String text = "<p>Hola " + admin.getFullName() + ",</p>" +
-                                      "<p>Adjunto encontrarás el reporte de asistencia de la <b>" + periodLabel + "</b>.</p>" +
-                                      "<br><p>Saludos,<br>Sistema Checador Vía Gourmet</p>";
-
-                        mailService.sendEmailWithAttachment(admin.getEmail(), subject, text, excelData, "Reporte_Asistencia.xlsx");
-                        logger.info("Reporte enviado exitosamente a {}", admin.getEmail());
+                                mailService.sendEmailWithAttachment(admin.getEmail(), subject, text, excelData, "Reporte_Asistencia.xlsx");
+                                logger.info("Reporte enviado exitosamente a {} (Tenant {})", admin.getEmail(), tenantId);
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error al generar/enviar reporte de la sucursal " + branch.getName(), e);
                     }
                 }
-            } catch (Exception e) {
-                logger.error("Error al generar/enviar reporte de la sucursal " + branch.getName(), e);
+            } finally {
+                com.checador.security.TenantContext.clear();
             }
         }
         logger.info("Finalizada la generación de reportes automáticos.");

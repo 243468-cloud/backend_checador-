@@ -136,6 +136,18 @@ public class AttendanceController {
         return ResponseEntity.ok(res);
     }
 
+    @GetMapping("/admin/stats/late")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @com.checador.security.RequiresModule("lateArrivals")
+    public ResponseEntity<?> getLateStats(@AuthenticationPrincipal User admin,
+                                          @RequestParam(required = false)
+                                          @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        LocalDate target = date != null ? date : LocalDate.now(MEXICO_ZONE);
+        Long branchId = admin.getBranch() != null ? admin.getBranch().getId() : null;
+        AttendanceService.DashboardStats stats = attendanceService.getDashboardStats(branchId, target);
+        return ResponseEntity.ok(java.util.Map.of("late", stats.late()));
+    }
+
     @PostMapping("/admin")
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> createManualAttendance(@AuthenticationPrincipal User admin,

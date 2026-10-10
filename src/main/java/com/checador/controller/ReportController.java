@@ -25,6 +25,7 @@ public class ReportController {
 
     private final AttendanceService attendanceService;
     private final ReportService reportService;
+    private final com.checador.service.WeeklyReportScheduler weeklyReportScheduler;
 
     private Long getBranchIdSafely(User u) {
         if (u == null) return null;
@@ -123,5 +124,16 @@ public class ReportController {
     @GetMapping("/global/summary")
     public ResponseEntity<?> getGlobalSummary(@RequestParam int year, @RequestParam int month) {
         return ResponseEntity.ok(Map.of("message", "Global report", "year", year, "month", month));
+    }
+
+    /**
+     * Endpoint externo para disparar los reportes semanales en lugar de usar @Scheduled
+     * para entornos Serverless / Free Tier que se duermen.
+     */
+    @PostMapping("/global/trigger-weekly")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPERUSER')")
+    public ResponseEntity<?> triggerWeeklyReports() {
+        weeklyReportScheduler.generateAndSendWeeklyReports();
+        return ResponseEntity.ok(Map.of("message", "Generación de reportes iniciada."));
     }
 }

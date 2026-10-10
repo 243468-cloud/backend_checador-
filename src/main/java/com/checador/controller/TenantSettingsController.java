@@ -41,7 +41,19 @@ public class TenantSettingsController {
      * PRIVADO (Solo SUPERUSER): Obtiene todas las empresas registradas.
      */
     @GetMapping("/all")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<java.util.List<TenantSettings>> getAllTenants() {
         return ResponseEntity.ok(service.getAllTenantsForSuperadmin());
+    }
+
+    /**
+     * PRIVADO (Solo SUPERUSER): Actualiza los módulos de una empresa.
+     */
+    @PutMapping("/tenant/{tenantId}/modules")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPERUSER')")
+    public ResponseEntity<TenantSettings> updateModules(
+            @PathVariable Long tenantId,
+            @RequestBody java.util.Set<String> modules) {
+        return ResponseEntity.ok(service.updateModulesForTenant(tenantId, modules));
     }
 }

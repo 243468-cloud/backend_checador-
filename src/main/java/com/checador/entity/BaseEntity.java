@@ -18,8 +18,6 @@ import org.hibernate.annotations.Filter;
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
-@FilterDef(name = "tenantFilter", parameters = {@ParamDef(name = "tenantId", type = Long.class)})
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public abstract class BaseEntity {
 
     @CreatedDate
@@ -30,6 +28,7 @@ public abstract class BaseEntity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @org.hibernate.annotations.TenantId
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 

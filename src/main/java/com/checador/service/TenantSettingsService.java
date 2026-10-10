@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 public class TenantSettingsService {
 
     private final TenantSettingsRepository repository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     /**
      * Endpoint público para que el frontend obtenga el diseño antes de iniciar sesión.
@@ -48,15 +49,40 @@ public class TenantSettingsService {
      * PRIVADO (Solo SUPERUSER): Obtiene todas las empresas registradas.
      */
     public java.util.List<TenantSettings> getAllTenantsForSuperadmin() {
+        return jdbcTemplate.query("SELECT * FROM tenant_settings", (rs, rowNum) -> {
+            TenantSettings ts = new TenantSettings();
+            ts.setId(rs.getLong("id"));
+            ts.setTenantId(rs.getLong("tenant_id"));
+            ts.setCompanyName(rs.getString("company_name"));
+            ts.setSlug(rs.getString("slug"));
+            ts.setLogoUrl(rs.getString("logo_url"));
+            ts.setIconUrl(rs.getString("icon_url"));
+            ts.setPrimaryColor(rs.getString("primary_color"));
+            ts.setToleranceMinutes(rs.getInt("tolerance_minutes"));
+            
+            // Note: active_modules is a separate table, fetching it per row might be N+1,
+            // but since this is superadmin and small scale, we can query it or leave it null/empty.
+            return ts;
+        });
+    }
+
+    /**
+     * PRIVADO (Solo SUPERUSER): Actualiza los módulos activos de una empresa.
+     */
+    public TenantSettings updateModulesForTenant(Long targetTenantId, java.util.Set<String> modules) {
         Long currentTenant = TenantContext.getTenantId();
         try {
-            // Limpiamos el contexto para saltarnos el TenantFilterAspect
-            TenantContext.clear();
-            return repository.findAll();
+            // Para editar el tenant destino, nos "cambiamos" temporalmente a ese tenant
+            TenantContext.setTenantId(targetTenantId);
+            TenantSettings target = repository.findByTenantId(targetTenantId)
+                    .orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
+            target.setActiveModules(modules);
+            return repository.save(target);
         } finally {
-            // Restauramos el tenantId original
             if (currentTenant != null) {
                 TenantContext.setTenantId(currentTenant);
+            } else {
+                TenantContext.clear();
             }
         }
     }

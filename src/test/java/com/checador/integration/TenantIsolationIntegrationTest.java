@@ -58,16 +58,21 @@ public class TenantIsolationIntegrationTest {
     private Long leaveRequestIdTenantB;
     private Long rosterIdTenantB;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @BeforeEach
     public void setup() {
-        attendanceRepository.deleteAll();
-        leaveRequestRepository.deleteAll();
-        scheduleRosterRepository.deleteAll();
-        userRepository.deleteAll();
-        branchRepository.deleteAll();
-        tenantSettingsRepository.deleteAll();
+        jdbcTemplate.execute("DELETE FROM schedule_rosters");
+        jdbcTemplate.execute("DELETE FROM leave_requests");
+        jdbcTemplate.execute("DELETE FROM attendances");
+        jdbcTemplate.execute("DELETE FROM users");
+        jdbcTemplate.execute("DELETE FROM branches");
+        jdbcTemplate.execute("DELETE FROM tenant_modules");
+        jdbcTemplate.execute("DELETE FROM tenant_settings");
 
         // Crear Tenant A
+        com.checador.security.TenantContext.setTenantId(1L);
         Branch branchA = new Branch();
         branchA.setName("Sucursal A");
         branchA.setTenantId(1L);
@@ -90,6 +95,7 @@ public class TenantIsolationIntegrationTest {
         tokenTenantA = jwtService.generateToken(adminA);
 
         // Crear Tenant B
+        com.checador.security.TenantContext.setTenantId(2L);
         Branch branchB = new Branch();
         branchB.setName("Sucursal B");
         branchB.setTenantId(2L);
@@ -143,6 +149,7 @@ public class TenantIsolationIntegrationTest {
         rosterIdTenantB = rosterB.getId();
 
         // Seed TenantSettings
+        com.checador.security.TenantContext.setTenantId(1L);
         com.checador.entity.TenantSettings tsA = new com.checador.entity.TenantSettings();
         tsA.setTenantId(1L);
         tsA.setCompanyName("Tenant A");
@@ -150,6 +157,7 @@ public class TenantIsolationIntegrationTest {
         tsA.setActiveModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals", "reports", "rankings")));
         tenantSettingsRepository.save(tsA);
 
+        com.checador.security.TenantContext.setTenantId(2L);
         com.checador.entity.TenantSettings tsB = new com.checador.entity.TenantSettings();
         tsB.setTenantId(2L);
         tsB.setCompanyName("Tenant B");
@@ -157,6 +165,8 @@ public class TenantIsolationIntegrationTest {
         // Tenant B DOES NOT have 'rankings' or 'reports'
         tsB.setActiveModules(new java.util.HashSet<>(java.util.List.of("schedules")));
         tenantSettingsRepository.save(tsB);
+
+        com.checador.security.TenantContext.clear();
     }
 
     // --- Branch ---
@@ -180,6 +190,11 @@ public class TenantIsolationIntegrationTest {
     // --- User ---
     @Test
     public void userIsolation() throws Exception {
+        // Intentar leer lista de empleados
+        mockMvc.perform(get("/api/employees")
+                .header("Authorization", "Bearer " + tokenTenantA))
+                .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/employees/" + employeeIdTenantB)
                 .header("Authorization", "Bearer " + tokenTenantA))
                 .andExpect(status().is4xxClientError());
@@ -239,18 +254,63 @@ public class TenantIsolationIntegrationTest {
 
     @Test
     public void testModuleIsolation() throws Exception {
-        // Tenant A has 'rankings' enabled
+        // Tenant A has all modules enabled
         mockMvc.perform(get("/api/ranking")
+                .header("Authorization", "Bearer " + tokenTenantA))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/attendance/admin/stats")
+                .header("Authorization", "Bearer " + tokenTenantA))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/schedules?weekStart=" + LocalDate.now())
                 .header("Authorization", "Bearer " + tokenTenantA))
                 .andExpect(status().isOk());
 
         // Tenant B DOES NOT have 'rankings' enabled
         // We need a token for Tenant B to test it
+        com.checador.security.TenantContext.setTenantId(2L);
         User employeeB = userRepository.findByUsername("employeeB").orElseThrow();
+        com.checador.security.TenantContext.clear();
         String tokenTenantB = jwtService.generateToken(employeeB);
 
         mockMvc.perform(get("/api/ranking")
                 .header("Authorization", "Bearer " + tokenTenantB))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    public void testSuperadminToggleModules() throws Exception {
+        // Create superadmin
+        com.checador.security.TenantContext.setTenantId(0L);
+        User superadmin = new User();
+        superadmin.setUsername("super");
+        superadmin.setPassword(passwordEncoder.encode("password"));
+        superadmin.setFullName("Super");
+        superadmin.setRole(Role.SUPERUSER);
+        superadmin.setTenantId(0L);
+        superadmin = userRepository.save(superadmin);
+        com.checador.security.TenantContext.clear();
+        
+        String token = jwtService.generateToken(superadmin);
+        
+        mockMvc.perform(put("/api/settings/tenant/2/modules")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[\"schedules\", \"rankings\"]"))
+                .andExpect(status().isOk());
+    }
+
+
+    @Test
+    public void testDirectRepositoryCallWithoutTransaction() {
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            var branches = branchRepository.findAll();
+            for (var b : branches) {
+                org.junit.jupiter.api.Assertions.assertEquals(2L, b.getTenantId());
+            }
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+    }
 }
+
