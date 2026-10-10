@@ -328,33 +328,51 @@ public class TenantIsolationIntegrationTest {
     
     @Test
     public void testRepositoryMethodsIsolation() {
-        // Prueba de que los nuevos métodos seguros filtran automáticamente todas las llamadas por ID
-        com.checador.security.TenantContext.setTenantId(1L); // Tenant A
+        Long tenantA = 1L;
+        Long tenantB = 2L;
+        
+        // Tenant A intenta operar sobre los IDs del Tenant B
+        com.checador.security.TenantContext.setTenantId(tenantA);
         try {
-            entityManager.clear(); // Limpiamos caché de primer nivel
+            entityManager.clear();
             
-            // Intentamos buscar datos del Tenant B usando el contexto del Tenant A
-            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findByIdWithTenant(employeeIdTenantB).isEmpty(), "findByIdWithTenant debe afirmar rechazo");
-            org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsByIdWithTenant(employeeIdTenantB), "existsByIdWithTenant debe afirmar rechazo");
+            // USER
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findByIdAndTenantId(employeeIdTenantB, tenantA).isEmpty(), "User read leak");
+            org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsByIdAndTenantId(employeeIdTenantB, tenantA), "User exists leak");
+            userRepository.deleteByIdAndTenantId(employeeIdTenantB, tenantA);
             
-            // findAllByIdWithTenant
-            Iterable<User> users = userRepository.findAllByIdWithTenant(java.util.List.of(employeeIdTenantB));
-            org.junit.jupiter.api.Assertions.assertFalse(users.iterator().hasNext(), "findAllByIdWithTenant debe afirmar rechazo");
+            // BRANCH
+            org.junit.jupiter.api.Assertions.assertTrue(branchRepository.findByIdAndTenantId(branchIdTenantB, tenantA).isEmpty(), "Branch read leak");
+            org.junit.jupiter.api.Assertions.assertFalse(branchRepository.existsByIdAndTenantId(branchIdTenantB, tenantA), "Branch exists leak");
+            branchRepository.deleteByIdAndTenantId(branchIdTenantB, tenantA);
             
-            // deleteByIdWithTenant - NO debe borrar el registro ni depender de filas hijas
-            userRepository.deleteByIdWithTenant(employeeIdTenantB);
+            // ATTENDANCE
+            org.junit.jupiter.api.Assertions.assertTrue(attendanceRepository.findByIdAndTenantId(attendanceIdTenantB, tenantA).isEmpty(), "Attendance read leak");
+            org.junit.jupiter.api.Assertions.assertFalse(attendanceRepository.existsByIdAndTenantId(attendanceIdTenantB, tenantA), "Attendance exists leak");
+            attendanceRepository.deleteByIdAndTenantId(attendanceIdTenantB, tenantA);
             
-            // getReferenceByIdWithTenant (debe retornar null o vacío en JPQL)
-            User u = userRepository.getReferenceByIdWithTenant(employeeIdTenantB);
-            org.junit.jupiter.api.Assertions.assertNull(u, "getReferenceByIdWithTenant debe afirmar rechazo devolviendo null");
+            // LEAVE REQUEST
+            org.junit.jupiter.api.Assertions.assertTrue(leaveRequestRepository.findByIdAndTenantId(leaveRequestIdTenantB, tenantA).isEmpty(), "LeaveRequest read leak");
+            org.junit.jupiter.api.Assertions.assertFalse(leaveRequestRepository.existsByIdAndTenantId(leaveRequestIdTenantB, tenantA), "LeaveRequest exists leak");
+            leaveRequestRepository.deleteByIdAndTenantId(leaveRequestIdTenantB, tenantA);
+            
+            // SCHEDULE ROSTER
+            org.junit.jupiter.api.Assertions.assertTrue(scheduleRosterRepository.findByIdAndTenantId(rosterIdTenantB, tenantA).isEmpty(), "ScheduleRoster read leak");
+            org.junit.jupiter.api.Assertions.assertFalse(scheduleRosterRepository.existsByIdAndTenantId(rosterIdTenantB, tenantA), "ScheduleRoster exists leak");
+            scheduleRosterRepository.deleteByIdAndTenantId(rosterIdTenantB, tenantA);
+            
         } finally {
             com.checador.security.TenantContext.clear();
         }
         
-        // Verificamos que deleteById NO borró el registro
-        com.checador.security.TenantContext.setTenantId(2L);
+        // Tenant B confirma que todo sigue intacto
+        com.checador.security.TenantContext.setTenantId(tenantB);
         try {
-            org.junit.jupiter.api.Assertions.assertTrue(userRepository.existsByIdWithTenant(employeeIdTenantB), "El registro B sigue intacto");
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.existsByIdAndTenantId(employeeIdTenantB, tenantB), "User B debe seguir intacto");
+            org.junit.jupiter.api.Assertions.assertTrue(branchRepository.existsByIdAndTenantId(branchIdTenantB, tenantB), "Branch B debe seguir intacto");
+            org.junit.jupiter.api.Assertions.assertTrue(attendanceRepository.existsByIdAndTenantId(attendanceIdTenantB, tenantB), "Attendance B debe seguir intacto");
+            org.junit.jupiter.api.Assertions.assertTrue(leaveRequestRepository.existsByIdAndTenantId(leaveRequestIdTenantB, tenantB), "LeaveRequest B debe seguir intacto");
+            org.junit.jupiter.api.Assertions.assertTrue(scheduleRosterRepository.existsByIdAndTenantId(rosterIdTenantB, tenantB), "ScheduleRoster B debe seguir intacto");
         } finally {
             com.checador.security.TenantContext.clear();
         }

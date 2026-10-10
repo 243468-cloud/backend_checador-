@@ -15,20 +15,13 @@ public interface BaseTenantRepository<T, ID> extends Repository<T, ID> {
     void deleteAll(Iterable<? extends T> entities);
     void deleteAll();
 
-    @org.springframework.data.jpa.repository.Query("SELECT e FROM #{#entityName} e WHERE e.id = ?1")
-    java.util.Optional<T> findByIdWithTenant(ID id);
+    java.util.Optional<T> findByIdAndTenantId(ID id, Long tenantId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT COUNT(e) > 0 FROM #{#entityName} e WHERE e.id = ?1")
-    boolean existsByIdWithTenant(ID id);
+    boolean existsByIdAndTenantId(ID id, Long tenantId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT e FROM #{#entityName} e WHERE e.id IN ?1")
-    List<T> findAllByIdWithTenant(Iterable<ID> ids);
+    List<T> findByIdInAndTenantId(Iterable<ID> ids, Long tenantId);
 
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.transaction.annotation.Transactional
-    @org.springframework.data.jpa.repository.Query("DELETE FROM #{#entityName} e WHERE e.id = ?1")
-    void deleteByIdWithTenant(ID id);
-
-    @org.springframework.data.jpa.repository.Query("SELECT e FROM #{#entityName} e WHERE e.id = ?1")
-    T getReferenceByIdWithTenant(ID id);
+    void deleteByIdAndTenantId(ID id, Long tenantId);
 }
