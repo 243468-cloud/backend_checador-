@@ -261,12 +261,11 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(get("/api/attendance/admin/stats")
                 .header("Authorization", "Bearer " + tokenTenantA))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/schedules?weekStart=" + LocalDate.now())
+        mockMvc.perform(get("/api/schedules/weeks")
                 .header("Authorization", "Bearer " + tokenTenantA))
                 .andExpect(status().isOk());
 
         // Tenant B DOES NOT have 'rankings' enabled
-        // We need a token for Tenant B to test it
         com.checador.security.TenantContext.setTenantId(2L);
         User employeeB = userRepository.findByUsername("employeeB").orElseThrow();
         com.checador.security.TenantContext.clear();
@@ -275,11 +274,17 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(get("/api/ranking")
                 .header("Authorization", "Bearer " + tokenTenantB))
                 .andExpect(status().isForbidden());
+                
+        // ADMIN de tenant intentando actualizar módulos (PUT /api/settings/tenant/{id}/modules)
+        mockMvc.perform(put("/api/settings/tenant/1/modules")
+                .header("Authorization", "Bearer " + tokenTenantB)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[\"schedules\", \"rankings\"]"))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     public void testSuperadminToggleModules() throws Exception {
-        // Create superadmin
         com.checador.security.TenantContext.setTenantId(0L);
         User superadmin = new User();
         superadmin.setUsername("super");
@@ -299,7 +304,6 @@ public class TenantIsolationIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-
     @Test
     public void testDirectRepositoryCallWithoutTransaction() {
         com.checador.security.TenantContext.setTenantId(2L);
@@ -310,6 +314,63 @@ public class TenantIsolationIntegrationTest {
             }
         } finally {
             com.checador.security.TenantContext.clear();
+        }
+    }
+    
+    @Test
+    public void testRepositoryMethodsIsolation() {
+        // Prueba de que Hibernate filtra automáticamente todas las llamadas por ID
+        com.checador.security.TenantContext.setTenantId(1L); // Tenant A
+        try {
+            // Intentamos buscar datos del Tenant B usando el contexto del Tenant A
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(employeeIdTenantB).isEmpty(), "findById devolvió datos de otro tenant");
+            org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsById(employeeIdTenantB), "existsById reconoció ID de otro tenant");
+            
+            // findAllById
+            Iterable<User> users = userRepository.findAllById(java.util.List.of(employeeIdTenantB));
+            org.junit.jupiter.api.Assertions.assertFalse(users.iterator().hasNext(), "findAllById devolvió datos de otro tenant");
+            
+            // deleteById
+            // Hibernate ejecutará DELETE FROM users WHERE id = ? AND tenant_id = 1. Como no coincidirá, no borrará nada del Tenant B.
+            // Para comprobarlo, hacemos delete y verificamos que siga existiendo en Tenant 2.
+            userRepository.deleteById(employeeIdTenantB);
+            
+            // Verificamos que se lanza EntityNotFoundException si usamos getReferenceById
+            org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.orm.jpa.JpaObjectRetrievalFailureException.class, 
+                () -> {
+                    User u = userRepository.getReferenceById(employeeIdTenantB);
+                    u.getUsername(); // Trigger lazy load
+                }, "getReferenceById expuso proxy de otro tenant"
+            );
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+        
+        // Verificamos que deleteById NO borró el registro
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(employeeIdTenantB).isPresent(), "deleteById borró registro de otro tenant");
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+    }
+    
+    @Test
+    public void testThreadWithoutContextThrowsException() {
+        // Simulamos un job/hilo sin contexto tenant y desactivamos el flag systemReady (arranque terminado)
+        com.checador.security.TenantContext.clear();
+        boolean previousReady = com.checador.security.TenantContext.systemReady;
+        com.checador.security.TenantContext.systemReady = true;
+        
+        try {
+            org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.InvalidDataAccessApiUsageException.class, 
+                () -> branchRepository.findAll(), 
+                "El hilo sin contexto debe fallar fail-closed"
+            );
+        } finally {
+            com.checador.security.TenantContext.systemReady = previousReady;
         }
     }
 }

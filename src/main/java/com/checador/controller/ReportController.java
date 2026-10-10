@@ -126,14 +126,29 @@ public class ReportController {
         return ResponseEntity.ok(Map.of("message", "Global report", "year", year, "month", month));
     }
 
+    @org.springframework.beans.factory.annotation.Value("${CRON_API_KEY:default-cron-key-change-me}")
+    private String cronApiKey;
+
     /**
      * Endpoint externo para disparar los reportes semanales en lugar de usar @Scheduled
      * para entornos Serverless / Free Tier que se duermen.
      */
-    @PostMapping("/global/trigger-weekly")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPERUSER')")
-    public ResponseEntity<?> triggerWeeklyReports() {
-        weeklyReportScheduler.generateAndSendWeeklyReports();
-        return ResponseEntity.ok(Map.of("message", "Generación de reportes iniciada."));
+    @PostMapping("/public/global/trigger-weekly")
+    public ResponseEntity<?> triggerWeeklyReports(@RequestHeader(value = "X-Cron-Key", required = false) String providedKey) {
+        if (providedKey == null || !java.security.MessageDigest.isEqual(providedKey.getBytes(), cronApiKey.getBytes())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body(Map.of("error", "API Key inválida."));
+        }
+        
+        // Ejecución en segundo plano para responder rápido al cron
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                weeklyReportScheduler.generateAndSendWeeklyReports();
+            } catch (Exception e) {
+                // Log and swallow so the thread doesn't crash silently
+                e.printStackTrace();
+            }
+        });
+        
+        return ResponseEntity.accepted().body(Map.of("message", "Generación de reportes iniciada en segundo plano."));
     }
 }

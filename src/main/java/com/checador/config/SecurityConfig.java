@@ -50,7 +50,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/**", "/api/public/**", "/api/branches/public", "/api/settings/public/**", "/error", "/actuator/health").permitAll()
+                .requestMatchers("/api/auth/**", "/api/public/**", "/api/reports/public/**", "/api/branches/public", "/api/settings/public/**", "/error", "/actuator/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                 // ── Superusuario exclusivo ────────────────────────────────
