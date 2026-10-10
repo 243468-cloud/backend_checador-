@@ -17,8 +17,14 @@ public class TenantSettingsController {
      * PÚBLICO: Obtiene colores y logo sin necesidad de Token JWT.
      */
     @GetMapping("/public/{slug}")
-    public ResponseEntity<TenantSettings> getPublicSettings(@PathVariable String slug) {
-        return ResponseEntity.ok(service.getSettingsBySlug(slug));
+    public ResponseEntity<java.util.Map<String, String>> getPublicSettings(@PathVariable String slug) {
+        TenantSettings settings = service.getSettingsBySlug(slug);
+        java.util.Map<String, String> result = new java.util.HashMap<>();
+        result.put("companyName", settings.getCompanyName());
+        result.put("primaryColor", settings.getPrimaryColor());
+        result.put("logoUrl", settings.getLogoUrl());
+        result.put("iconUrl", settings.getIconUrl());
+        return ResponseEntity.ok(result);
     }
 
     /**
