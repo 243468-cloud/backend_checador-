@@ -31,7 +31,7 @@ public class BranchController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Branch> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(branchService.findById(id));
+        return ResponseEntity.ok(branchService.findByIdWithTenant(id));
     }
 
     @PostMapping
@@ -64,3 +64,4 @@ public class BranchController {
             Integer toleranceMinutes
     ) {}
 }
+

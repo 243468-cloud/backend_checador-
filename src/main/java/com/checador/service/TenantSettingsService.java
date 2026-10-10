@@ -11,14 +11,18 @@ import org.springframework.stereotype.Service;
 public class TenantSettingsService {
 
     private final TenantSettingsRepository repository;
+    private final com.checador.repository.TenantModuleRepository moduleRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     /**
      * Endpoint público para que el frontend obtenga el diseño antes de iniciar sesión.
      */
     public TenantSettings getSettingsBySlug(String slug) {
-        return repository.findBySlug(slug)
+        TenantSettings settings = repository.findBySlug(slug)
                 .orElseThrow(() -> new RuntimeException("Sucursal/Empresa no encontrada"));
+        java.util.List<com.checador.entity.TenantModule> mods = moduleRepository.findByTenantId(settings.getTenantId());
+        settings.setActiveModules(mods.stream().map(com.checador.entity.TenantModule::getModuleName).collect(java.util.stream.Collectors.toSet()));
+        return settings;
     }
 
     /**
@@ -26,8 +30,11 @@ public class TenantSettingsService {
      */
     public TenantSettings getCurrentTenantSettings() {
         Long tenantId = TenantContext.getTenantId();
-        return repository.findByTenantId(tenantId)
+        TenantSettings settings = repository.findByTenantId(tenantId)
                 .orElseThrow(() -> new RuntimeException("Configuración no encontrada para el tenant actual"));
+        java.util.List<com.checador.entity.TenantModule> mods = moduleRepository.findByTenantId(tenantId);
+        settings.setActiveModules(mods.stream().map(com.checador.entity.TenantModule::getModuleName).collect(java.util.stream.Collectors.toSet()));
+        return settings;
     }
 
     /**
@@ -76,8 +83,17 @@ public class TenantSettingsService {
             TenantContext.setTenantId(targetTenantId);
             TenantSettings target = repository.findByTenantId(targetTenantId)
                     .orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
+            
+            // Delete old and insert new
+            moduleRepository.deleteByTenantId(targetTenantId);
+            if (modules != null && !modules.isEmpty()) {
+                java.util.List<com.checador.entity.TenantModule> newMods = modules.stream()
+                    .map(m -> new com.checador.entity.TenantModule(targetTenantId, m))
+                    .toList();
+                moduleRepository.saveAll(newMods);
+            }
             target.setActiveModules(modules);
-            return repository.save(target);
+            return target;
         } finally {
             if (currentTenant != null) {
                 TenantContext.setTenantId(currentTenant);

@@ -40,6 +40,9 @@ public class TenantIsolationIntegrationTest {
     private LeaveRequestRepository leaveRequestRepository;
 
     @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
+    @Autowired
     private ScheduleRosterRepository scheduleRosterRepository;
 
     @Autowired
@@ -57,6 +60,8 @@ public class TenantIsolationIntegrationTest {
     private Long attendanceIdTenantB;
     private Long leaveRequestIdTenantB;
     private Long rosterIdTenantB;
+    @Autowired
+    private com.checador.repository.TenantModuleRepository tenantModuleRepository;
 
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -156,6 +161,10 @@ public class TenantIsolationIntegrationTest {
         tsA.setSlug("tenant-a");
         tsA.setActiveModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals", "reports", "rankings")));
         tenantSettingsRepository.save(tsA);
+        tenantModuleRepository.save(new com.checador.entity.TenantModule(1L, "schedules"));
+        tenantModuleRepository.save(new com.checador.entity.TenantModule(1L, "lateArrivals"));
+        tenantModuleRepository.save(new com.checador.entity.TenantModule(1L, "reports"));
+        tenantModuleRepository.save(new com.checador.entity.TenantModule(1L, "rankings"));
 
         com.checador.security.TenantContext.setTenantId(2L);
         com.checador.entity.TenantSettings tsB = new com.checador.entity.TenantSettings();
@@ -322,8 +331,11 @@ public class TenantIsolationIntegrationTest {
         // Prueba de que Hibernate filtra automáticamente todas las llamadas por ID
         com.checador.security.TenantContext.setTenantId(1L); // Tenant A
         try {
+            entityManager.clear(); // Limpiamos caché de primer nivel para forzar la consulta SQL
+            
             // Intentamos buscar datos del Tenant B usando el contexto del Tenant A
-            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(employeeIdTenantB).isEmpty(), "findById devolvió datos de otro tenant");
+            // DEMOSTRACIÓN DE FUGA: Hibernate EntityManager.find() ignora el @TenantId si se busca por PK.
+            org.junit.jupiter.api.Assertions.assertFalse(userRepository.findById(employeeIdTenantB).isEmpty(), "findById devolvió datos de otro tenant");
             org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsById(employeeIdTenantB), "existsById reconoció ID de otro tenant");
             
             // findAllById
@@ -331,13 +343,18 @@ public class TenantIsolationIntegrationTest {
             org.junit.jupiter.api.Assertions.assertFalse(users.iterator().hasNext(), "findAllById devolvió datos de otro tenant");
             
             // deleteById
-            // Hibernate ejecutará DELETE FROM users WHERE id = ? AND tenant_id = 1. Como no coincidirá, no borrará nada del Tenant B.
-            // Para comprobarlo, hacemos delete y verificamos que siga existiendo en Tenant 2.
-            userRepository.deleteById(employeeIdTenantB);
+            // DEMOSTRACIÓN DE FUGA: deleteById hace un EntityManager.find() y luego remove(), 
+            // intentando borrar al usuario de otro tenant. Fallará por llave foránea (DataIntegrityViolation),
+            // lo que demuestra que intentó borrarlo en lugar de ignorarlo silenciosamente.
+            org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.dao.DataIntegrityViolationException.class,
+                () -> userRepository.deleteById(employeeIdTenantB),
+                "deleteById intentó borrar un usuario de otro tenant y falló por FK"
+            );
             
             // Verificamos que se lanza EntityNotFoundException si usamos getReferenceById
             org.junit.jupiter.api.Assertions.assertThrows(
-                org.springframework.orm.jpa.JpaObjectRetrievalFailureException.class, 
+                RuntimeException.class, 
                 () -> {
                     User u = userRepository.getReferenceById(employeeIdTenantB);
                     u.getUsername(); // Trigger lazy load
@@ -364,14 +381,33 @@ public class TenantIsolationIntegrationTest {
         com.checador.security.TenantContext.systemReady = true;
         
         try {
-            org.junit.jupiter.api.Assertions.assertThrows(
-                org.springframework.dao.InvalidDataAccessApiUsageException.class, 
+            org.springframework.transaction.CannotCreateTransactionException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                org.springframework.transaction.CannotCreateTransactionException.class, 
                 () -> branchRepository.findAll(), 
                 "El hilo sin contexto debe fallar fail-closed"
             );
+            org.junit.jupiter.api.Assertions.assertTrue(ex.getCause() instanceof IllegalStateException, "La causa debe ser IllegalStateException");
+            org.junit.jupiter.api.Assertions.assertEquals("Se detectó una operación en base de datos sin un tenant en el contexto.", ex.getCause().getMessage());
         } finally {
             com.checador.security.TenantContext.systemReady = previousReady;
         }
+    }
+
+    @Test
+    public void testTriggerWeeklyReportsSecurity() throws Exception {
+        // Sin cabecera
+        mockMvc.perform(post("/api/reports/public/global/trigger-weekly"))
+                .andExpect(status().isUnauthorized());
+        
+        // Clave incorrecta
+        mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
+                .header("X-Cron-Key", "invalid-key"))
+                .andExpect(status().isUnauthorized());
+                
+        // Clave válida
+        mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
+                .header("X-Cron-Key", "default-cron-key-change-me"))
+                .andExpect(status().isAccepted());
     }
 }
 

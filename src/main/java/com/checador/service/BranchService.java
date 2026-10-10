@@ -20,7 +20,7 @@ public class BranchService {
         return branchRepository.findByActive(true);
     }
 
-    public Branch findById(Long id) {
+    public Branch findByIdWithTenant(Long id) {
         Long tenantId = TenantContext.getTenantId();
         return branchRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
@@ -44,7 +44,7 @@ public class BranchService {
     @Transactional
     public Branch update(Long id, String name, String address, Double lat, Double lng,
                          Integer radiusMeters, Integer toleranceMinutes) {
-        Branch branch = findById(id);
+        Branch branch = findByIdWithTenant(id);
         if (name != null) branch.setName(name);
         if (address != null) branch.setAddress(address);
         if (lat != null) branch.setLatitude(lat);
@@ -56,7 +56,7 @@ public class BranchService {
 
     @Transactional
     public void deactivate(Long id) {
-        Branch branch = findById(id);
+        Branch branch = findByIdWithTenant(id);
         branch.setActive(false);
         branchRepository.save(branch);
     }

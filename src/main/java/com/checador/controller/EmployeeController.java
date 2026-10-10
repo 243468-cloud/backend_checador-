@@ -39,7 +39,7 @@ public class EmployeeController {
     @Transactional(readOnly = true)
     public ResponseEntity<?> getById(@PathVariable Long id,
                                      @AuthenticationPrincipal User admin) {
-        User target = userService.findById(id);
+        User target = userService.findByIdWithTenant(id);
         assertSameBranchOrSuperuser(admin, target);
         return ResponseEntity.ok(toResponse(target));
     }
@@ -53,7 +53,7 @@ public class EmployeeController {
             if (branchId == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Debe especificar una sucursal"));
             }
-            var branch = branchService.findById(branchId);
+            var branch = branchService.findByIdWithTenant(branchId);
             User employee = userService.createEmployee(req.username(), req.password(),
                     req.fullName(), req.email(), branch, req.shiftType());
             return ResponseEntity.ok(toResponse(employee));
@@ -67,7 +67,7 @@ public class EmployeeController {
     public ResponseEntity<?> update(@PathVariable Long id,
                                      @AuthenticationPrincipal User admin,
                                      @RequestBody UpdateEmployeeRequest req) {
-        User target = userService.findById(id);
+        User target = userService.findByIdWithTenant(id);
         assertSameBranchOrSuperuser(admin, target);
         User updated = userService.updateUser(id, req.fullName(), req.email(),
                 req.shiftType(), req.profilePicture());
@@ -78,7 +78,7 @@ public class EmployeeController {
     @Transactional
     public ResponseEntity<?> toggleActive(@PathVariable Long id,
                                           @AuthenticationPrincipal User admin) {
-        User target = userService.findById(id);
+        User target = userService.findByIdWithTenant(id);
         assertSameBranchOrSuperuser(admin, target);
         userService.toggleActive(id);
         return ResponseEntity.ok(Map.of("message", "Estado actualizado"));
@@ -89,7 +89,7 @@ public class EmployeeController {
     public ResponseEntity<?> changePassword(@PathVariable Long id,
                                              @AuthenticationPrincipal User admin,
                                              @RequestBody Map<String, String> body) {
-        User target = userService.findById(id);
+        User target = userService.findByIdWithTenant(id);
         assertSameBranchOrSuperuser(admin, target);
         String newPassword = body.get("password");
         if (newPassword == null || newPassword.isBlank() || newPassword.length() < 6) {
@@ -103,7 +103,7 @@ public class EmployeeController {
     @Transactional
     public ResponseEntity<?> delete(@PathVariable Long id,
                                      @AuthenticationPrincipal User admin) {
-        User target = userService.findById(id);
+        User target = userService.findByIdWithTenant(id);
         assertSameBranchOrSuperuser(admin, target);
         userService.deleteUser(id);
         return ResponseEntity.ok(Map.of("message", "Empleado eliminado exitosamente"));
@@ -164,3 +164,4 @@ public class EmployeeController {
     public record UpdateEmployeeRequest(String fullName, String email,
                                         ShiftType shiftType, String profilePicture) {}
 }
+

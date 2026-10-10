@@ -25,6 +25,7 @@ public class ShiftReminderScheduler {
     private final AttendanceRepository attendanceRepository;
     private final NotificationRepository notificationRepository;
     private final ShiftConfigService shiftConfigService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -38,9 +39,15 @@ public class ShiftReminderScheduler {
         LocalDate today = LocalDate.now(mxZone);
         LocalTime nowTime = LocalTime.now(mxZone).withSecond(0).withNano(0);
 
-        List<User> activeEmployees = userRepository.findAll().stream()
-                .filter(u -> u.getRole() == Role.EMPLOYEE && Boolean.TRUE.equals(u.getActive()))
-                .toList();
+        // Obtener todos los tenants registrados
+        List<Long> tenantIds = jdbcTemplate.queryForList("SELECT DISTINCT tenant_id FROM users WHERE tenant_id > 0", Long.class);
+
+        for (Long tenantId : tenantIds) {
+            try {
+                com.checador.security.TenantContext.setTenantId(tenantId);
+                List<User> activeEmployees = userRepository.findAll().stream()
+                        .filter(u -> u.getRole() == Role.EMPLOYEE && Boolean.TRUE.equals(u.getActive()))
+                        .toList();
 
         for (User emp : activeEmployees) {
             ShiftType shift = emp.getShiftType();
@@ -67,6 +74,10 @@ public class ShiftReminderScheduler {
             LocalTime unregisteredCheckOutDeadline = endTime.plusHours(6);
             if (nowTime.equals(unregisteredCheckOutDeadline)) {
                 flagUnregisteredCheckOutAsLate(emp, today, shift);
+            }
+            }
+            } finally {
+                com.checador.security.TenantContext.clear();
             }
         }
     }

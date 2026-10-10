@@ -29,7 +29,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> registerEmployee(@Valid @RequestBody RegisterRequest request) {
         try {
-            var branch = branchService.findById(request.branchId());
+            var branch = branchService.findByIdWithTenant(request.branchId());
             User user = userService.createEmployee(
                     request.username(),
                     request.password(),
@@ -159,3 +159,4 @@ public class AuthController {
             @jakarta.validation.constraints.NotNull(message = "El turno es requerido") com.checador.entity.ShiftType shiftType
     ) {}
 }
+

@@ -93,7 +93,7 @@ public class LeaveRequestService {
     }
 
     /** Acceso público para que el controller pueda validar scope de sucursal. */
-    public LeaveRequest findById(Long id) {
+    public LeaveRequest findByIdWithTenant(Long id) {
         return findOrThrow(id);
     }
 }

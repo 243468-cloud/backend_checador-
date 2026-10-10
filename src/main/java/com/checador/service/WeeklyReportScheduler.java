@@ -39,7 +39,8 @@ public class WeeklyReportScheduler {
         String periodLabel = "Semana del " + startOfLastWeek + " al " + endOfLastWeek;
 
         // Obtener todos los tenants registrados usando JdbcTemplate para evadir el @TenantId global
-        List<Long> tenantIds = jdbcTemplate.queryForList("SELECT tenant_id FROM tenant_settings", Long.class);
+        // Usamos la tabla 'users' para garantizar que se obtienen todos los tenants (incluidos los que no tengan settings)
+        List<Long> tenantIds = jdbcTemplate.queryForList("SELECT DISTINCT tenant_id FROM users WHERE tenant_id > 0", Long.class);
 
         for (Long tenantId : tenantIds) {
             try {

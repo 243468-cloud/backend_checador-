@@ -43,7 +43,7 @@ public class AttendanceController {
     public ResponseEntity<?> checkIn(@AuthenticationPrincipal User employee,
                                       @RequestBody CheckRequest req) {
         try {
-            Branch branch = branchService.findById(employee.getBranch().getId());
+            Branch branch = branchService.findByIdWithTenant(employee.getBranch().getId());
             Attendance a = attendanceService.checkIn(employee, branch, req.latitude(), req.longitude());
             return ResponseEntity.ok(toResponse(a));
         } catch (IllegalStateException e) {
@@ -55,7 +55,7 @@ public class AttendanceController {
     public ResponseEntity<?> checkOut(@AuthenticationPrincipal User employee,
                                        @RequestBody CheckRequest req) {
         try {
-            Branch branch = branchService.findById(employee.getBranch().getId());
+            Branch branch = branchService.findByIdWithTenant(employee.getBranch().getId());
             Attendance a = attendanceService.checkOut(employee, branch, req.latitude(), req.longitude());
             return ResponseEntity.ok(toResponse(a));
         } catch (IllegalStateException e) {
@@ -174,7 +174,7 @@ public class AttendanceController {
     @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> deleteAttendance(@PathVariable Long id,
                                                @AuthenticationPrincipal User admin) {
-        Attendance a = attendanceService.findById(id);
+        Attendance a = attendanceService.findByIdWithTenant(id);
         if (admin != null && admin.getRole() != com.checador.entity.Role.SUPERUSER) {
             Long adminBranch = admin.getBranch() != null ? admin.getBranch().getId() : null;
             Long recordBranch = a.getBranch() != null ? a.getBranch().getId() : null;
@@ -260,3 +260,4 @@ public class AttendanceController {
     public record CreateManualRequest(@NotNull Long employeeId, @NotNull LocalDate date, LocalDateTime checkInTime, LocalDateTime checkOutTime,
                                       AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {}
 }
+

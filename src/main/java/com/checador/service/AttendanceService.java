@@ -288,7 +288,7 @@ public class AttendanceService {
     @Transactional
     public Attendance updateAttendance(Long id, LocalDateTime checkIn, LocalDateTime checkOut,
                                        AttendanceStatus status, String notes, Integer lateMinutes, Double extraHours) {
-        Attendance a = findById(id);
+        Attendance a = findByIdWithTenant(id);
         if (checkIn != null) a.setCheckInTime(checkIn);
         if (checkOut != null) a.setCheckOutTime(checkOut);
         if (status != null) a.setStatus(status);
@@ -334,7 +334,7 @@ public class AttendanceService {
         return attendanceRepository.save(attendance);
     }
 
-    public Attendance findById(Long id) {
+    public Attendance findByIdWithTenant(Long id) {
         Long tenantId = TenantContext.getTenantId();
         return attendanceRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro no encontrado o acceso denegado"));
@@ -342,7 +342,7 @@ public class AttendanceService {
 
     @Transactional
     public void deleteAttendance(Long id) {
-        Attendance a = findById(id);
+        Attendance a = findByIdWithTenant(id);
         attendanceRepository.delete(a);
     }
 

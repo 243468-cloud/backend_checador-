@@ -20,7 +20,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
-@com.checador.security.RequiresModule("reports")
 public class ReportController {
 
     private final AttendanceService attendanceService;
@@ -50,6 +49,7 @@ public class ReportController {
      */
     @GetMapping("/excel")
     @Transactional(readOnly = true)
+    @com.checador.security.RequiresModule("reports")
     public ResponseEntity<byte[]> downloadExcel(@AuthenticationPrincipal User admin,
                                                  @RequestParam int year,
                                                  @RequestParam int month,
@@ -97,6 +97,7 @@ public class ReportController {
      */
     @GetMapping("/monthly")
     @Transactional(readOnly = true)
+    @com.checador.security.RequiresModule("reports")
     public ResponseEntity<?> getMonthlyData(@AuthenticationPrincipal User admin,
                                              @RequestParam int year,
                                              @RequestParam int month) {
@@ -122,6 +123,7 @@ public class ReportController {
      * Reporte global de todas las sucursales (solo Superusuario).
      */
     @GetMapping("/global/summary")
+    @com.checador.security.RequiresModule("reports")
     public ResponseEntity<?> getGlobalSummary(@RequestParam int year, @RequestParam int month) {
         return ResponseEntity.ok(Map.of("message", "Global report", "year", year, "month", month));
     }
@@ -135,7 +137,7 @@ public class ReportController {
      */
     @PostMapping("/public/global/trigger-weekly")
     public ResponseEntity<?> triggerWeeklyReports(@RequestHeader(value = "X-Cron-Key", required = false) String providedKey) {
-        if (providedKey == null || !java.security.MessageDigest.isEqual(providedKey.getBytes(), cronApiKey.getBytes())) {
+        if (providedKey == null || cronApiKey == null || !java.security.MessageDigest.isEqual(providedKey.getBytes(), cronApiKey.getBytes())) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body(Map.of("error", "API Key inválida."));
         }
         
@@ -152,3 +154,4 @@ public class ReportController {
         return ResponseEntity.accepted().body(Map.of("message", "Generación de reportes iniciada en segundo plano."));
     }
 }
+

@@ -41,9 +41,7 @@ public class TenantSettings extends BaseEntity {
     @Column(name = "subscription_status", length = 20)
     private SubscriptionStatus subscriptionStatus = SubscriptionStatus.ACTIVE;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "tenant_modules", joinColumns = @JoinColumn(name = "tenant_id", referencedColumnName = "tenant_id"))
-    @Column(name = "module_name")
+    @Transient
     @Builder.Default
     private java.util.Set<String> activeModules = new java.util.HashSet<>();
 

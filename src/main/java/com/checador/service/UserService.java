@@ -79,7 +79,7 @@ public class UserService implements UserDetailsService {
     @Transactional
     public User updateUser(Long id, String fullName, String email,
                            com.checador.entity.ShiftType shiftType, String profilePicture) {
-        User user = findById(id);
+        User user = findByIdWithTenant(id);
         user.setFullName(fullName);
         user.setEmail(email);
         if (shiftType != null) user.setShiftType(shiftType);
@@ -89,14 +89,14 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void changePassword(Long id, String newPassword) {
-        User user = findById(id);
+        User user = findByIdWithTenant(id);
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
 
     @Transactional
     public void toggleActive(Long id) {
-        User user = findById(id);
+        User user = findByIdWithTenant(id);
         user.setActive(!user.getActive());
         userRepository.save(user);
     }
@@ -107,14 +107,14 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void deleteUser(Long id) {
-        User user = findById(id);
+        User user = findByIdWithTenant(id);
         attendanceRepository.deleteByUserId(id);
         pushSubscriptionRepository.deleteByUserId(id);
         leaveRequestRepository.deleteByUserId(id);
         userRepository.delete(user);
     }
 
-    public User findById(Long id) {
+    public User findByIdWithTenant(Long id) {
         Long tenantId = TenantContext.getTenantId();
         return userRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado o acceso denegado"));

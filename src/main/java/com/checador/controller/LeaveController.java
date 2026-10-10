@@ -138,7 +138,7 @@ public class LeaveController {
      */
     private void assertAdminCanReview(User admin, Long requestId) {
         if (admin.getRole() == Role.SUPERUSER) return;
-        LeaveRequest req = leaveService.findById(requestId);
+        LeaveRequest req = leaveService.findByIdWithTenant(requestId);
         Long adminBranch   = admin.getBranch()          != null ? admin.getBranch().getId()          : null;
         Long requestBranch = req.getBranch()            != null ? req.getBranch().getId()            : null;
         if (!java.util.Objects.equals(adminBranch, requestBranch)) {
@@ -189,3 +189,4 @@ public class LeaveController {
             String adminNotes
     ) {}
 }
+

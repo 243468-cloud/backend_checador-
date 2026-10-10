@@ -35,7 +35,7 @@ public class AdminController {
     @Transactional
     public ResponseEntity<?> createAdmin(@Valid @RequestBody AdminRequest req) {
         try {
-            Branch branch = branchService.findById(req.branchId());
+            Branch branch = branchService.findByIdWithTenant(req.branchId());
             User admin = userService.createAdmin(req.username(), req.password(),
                     req.fullName(), req.email(), branch);
             return ResponseEntity.ok(toResponse(admin));
@@ -111,3 +111,4 @@ public class AdminController {
 
     public record UpdateAdminRequest(String fullName, String email) {}
 }
+
