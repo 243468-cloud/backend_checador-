@@ -12,7 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 @Repository
-public interface PushSubscriptionRepository extends JpaRepository<PushSubscriptionEntity, Long> {
+public interface PushSubscriptionRepository extends BaseTenantRepository<PushSubscriptionEntity, Long> {
 
     Optional<PushSubscriptionEntity> findByEndpoint(String endpoint);
 

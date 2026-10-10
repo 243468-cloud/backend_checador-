@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface NotificationRepository extends JpaRepository<Notification, Long> {
+public interface NotificationRepository extends BaseTenantRepository<Notification, Long> {
 
     /** Todas las notificaciones para un rol, ordenadas por fecha descendente */
     @Query("""

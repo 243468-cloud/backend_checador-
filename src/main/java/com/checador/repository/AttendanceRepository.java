@@ -14,7 +14,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.Modifying;
 
 @Repository
-public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
+public interface AttendanceRepository extends BaseTenantRepository<Attendance, Long> {
 
     @Query("SELECT a FROM Attendance a LEFT JOIN FETCH a.user LEFT JOIN FETCH a.branch WHERE a.user.id = :userId AND a.attendanceDate = :date")
     Optional<Attendance> findByUserIdAndAttendanceDate(@Param("userId") Long userId, @Param("date") LocalDate date);

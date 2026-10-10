@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface ScheduleRosterRepository extends JpaRepository<ScheduleRoster, Long> {
+public interface ScheduleRosterRepository extends BaseTenantRepository<ScheduleRoster, Long> {
 
     /** Obtiene toda la matriz de una sucursal para la semana indicada. */
     List<ScheduleRoster> findByBranchIdAndWeekStart(Long branchId, LocalDate weekStart);

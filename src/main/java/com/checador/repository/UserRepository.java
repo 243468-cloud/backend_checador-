@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends BaseTenantRepository<User, Long> {
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE LOWER(u.username) = LOWER(TRIM(:username))")
     Optional<User> findByUsername(@Param("username") String username);

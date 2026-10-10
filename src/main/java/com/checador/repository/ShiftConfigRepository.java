@@ -7,6 +7,6 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface ShiftConfigRepository extends JpaRepository<ShiftConfig, Long> {
+public interface ShiftConfigRepository extends BaseTenantRepository<ShiftConfig, Long> {
     Optional<ShiftConfig> findByShiftName(String shiftName);
 }

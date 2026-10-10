@@ -13,7 +13,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 
 @Repository
-public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long> {
+public interface LeaveRequestRepository extends BaseTenantRepository<LeaveRequest, Long> {
 
     /** Solicitudes de un empleado específico. */
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);

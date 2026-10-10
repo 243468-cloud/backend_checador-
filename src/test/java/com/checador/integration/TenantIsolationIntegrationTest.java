@@ -328,38 +328,25 @@ public class TenantIsolationIntegrationTest {
     
     @Test
     public void testRepositoryMethodsIsolation() {
-        // Prueba de que Hibernate filtra automáticamente todas las llamadas por ID
+        // Prueba de que los nuevos métodos seguros filtran automáticamente todas las llamadas por ID
         com.checador.security.TenantContext.setTenantId(1L); // Tenant A
         try {
-            entityManager.clear(); // Limpiamos caché de primer nivel para forzar la consulta SQL
+            entityManager.clear(); // Limpiamos caché de primer nivel
             
             // Intentamos buscar datos del Tenant B usando el contexto del Tenant A
-            // DEMOSTRACIÓN DE FUGA: Hibernate EntityManager.find() ignora el @TenantId si se busca por PK.
-            org.junit.jupiter.api.Assertions.assertFalse(userRepository.findById(employeeIdTenantB).isEmpty(), "findById devolvió datos de otro tenant");
-            org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsById(employeeIdTenantB), "existsById reconoció ID de otro tenant");
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findByIdWithTenant(employeeIdTenantB).isEmpty(), "findByIdWithTenant debe afirmar rechazo");
+            org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsByIdWithTenant(employeeIdTenantB), "existsByIdWithTenant debe afirmar rechazo");
             
-            // findAllById
-            Iterable<User> users = userRepository.findAllById(java.util.List.of(employeeIdTenantB));
-            org.junit.jupiter.api.Assertions.assertFalse(users.iterator().hasNext(), "findAllById devolvió datos de otro tenant");
+            // findAllByIdWithTenant
+            Iterable<User> users = userRepository.findAllByIdWithTenant(java.util.List.of(employeeIdTenantB));
+            org.junit.jupiter.api.Assertions.assertFalse(users.iterator().hasNext(), "findAllByIdWithTenant debe afirmar rechazo");
             
-            // deleteById
-            // DEMOSTRACIÓN DE FUGA: deleteById hace un EntityManager.find() y luego remove(), 
-            // intentando borrar al usuario de otro tenant. Fallará por llave foránea (DataIntegrityViolation),
-            // lo que demuestra que intentó borrarlo en lugar de ignorarlo silenciosamente.
-            org.junit.jupiter.api.Assertions.assertThrows(
-                org.springframework.dao.DataIntegrityViolationException.class,
-                () -> userRepository.deleteById(employeeIdTenantB),
-                "deleteById intentó borrar un usuario de otro tenant y falló por FK"
-            );
+            // deleteByIdWithTenant - NO debe borrar el registro ni depender de filas hijas
+            userRepository.deleteByIdWithTenant(employeeIdTenantB);
             
-            // Verificamos que se lanza EntityNotFoundException si usamos getReferenceById
-            org.junit.jupiter.api.Assertions.assertThrows(
-                RuntimeException.class, 
-                () -> {
-                    User u = userRepository.getReferenceById(employeeIdTenantB);
-                    u.getUsername(); // Trigger lazy load
-                }, "getReferenceById expuso proxy de otro tenant"
-            );
+            // getReferenceByIdWithTenant (debe retornar null o vacío en JPQL)
+            User u = userRepository.getReferenceByIdWithTenant(employeeIdTenantB);
+            org.junit.jupiter.api.Assertions.assertNull(u, "getReferenceByIdWithTenant debe afirmar rechazo devolviendo null");
         } finally {
             com.checador.security.TenantContext.clear();
         }
@@ -367,7 +354,7 @@ public class TenantIsolationIntegrationTest {
         // Verificamos que deleteById NO borró el registro
         com.checador.security.TenantContext.setTenantId(2L);
         try {
-            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findById(employeeIdTenantB).isPresent(), "deleteById borró registro de otro tenant");
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.existsByIdWithTenant(employeeIdTenantB), "El registro B sigue intacto");
         } finally {
             com.checador.security.TenantContext.clear();
         }
