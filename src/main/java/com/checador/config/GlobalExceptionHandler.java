@@ -52,7 +52,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
     }
 
-    /** Catch-all — nunca expone stack trace */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> handleResponseStatus(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(Map.of("error", ex.getReason() != null ? ex.getReason() : ex.getMessage()));
+    }
+
     @ExceptionHandler(com.checador.exception.ResourceNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleNotFound(com.checador.exception.ResourceNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

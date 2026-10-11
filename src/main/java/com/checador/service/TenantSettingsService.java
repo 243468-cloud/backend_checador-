@@ -18,11 +18,23 @@ public class TenantSettingsService {
      * Endpoint público para que el frontend obtenga el diseño antes de iniciar sesión.
      */
     public TenantSettings getSettingsBySlug(String slug) {
-        TenantSettings settings = repository.findBySlug(slug)
-                .orElseThrow(() -> new RuntimeException("Sucursal/Empresa no encontrada"));
-        java.util.List<com.checador.entity.TenantModule> mods = moduleRepository.findByTenantId(settings.getTenantId());
-        settings.setActiveModules(mods.stream().map(com.checador.entity.TenantModule::getModuleName).collect(java.util.stream.Collectors.toSet()));
-        return settings;
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT company_name, primary_color, logo_url, icon_url FROM tenant_settings WHERE slug = ?",
+                (rs, rowNum) -> {
+                    TenantSettings ts = new TenantSettings();
+                    ts.setCompanyName(rs.getString("company_name"));
+                    ts.setPrimaryColor(rs.getString("primary_color"));
+                    ts.setLogoUrl(rs.getString("logo_url"));
+                    ts.setIconUrl(rs.getString("icon_url"));
+                    return ts;
+                },
+                slug
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Tenant not found");
+        }
     }
 
     /**

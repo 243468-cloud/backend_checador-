@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -157,8 +158,11 @@ public class TenantIsolationIntegrationTest {
         com.checador.security.TenantContext.setTenantId(1L);
         com.checador.entity.TenantSettings tsA = new com.checador.entity.TenantSettings();
         tsA.setTenantId(1L);
-        tsA.setCompanyName("Tenant A");
-        tsA.setSlug("tenant-a");
+        tsA.setCompanyName("Via Gourmet Test");
+        tsA.setSlug("via-gourmet");
+        tsA.setPrimaryColor("#ff0000");
+        tsA.setLogoUrl("logoA.png");
+        tsA.setIconUrl("iconA.png");
         tsA.setActiveModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals", "reports", "rankings")));
         tenantSettingsRepository.save(tsA);
         tenantModuleRepository.save(new com.checador.entity.TenantModule(1L, "schedules"));
@@ -326,6 +330,27 @@ public class TenantIsolationIntegrationTest {
         }
     }
     
+    @Test
+    public void testPublicSettingsEndpoint() throws Exception {
+        // Valid slug
+        mockMvc.perform(get("/api/settings/public/via-gourmet"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.companyName").value("Via Gourmet Test"))
+                .andExpect(jsonPath("$.primaryColor").value("#ff0000"))
+                .andExpect(jsonPath("$.logoUrl").value("logoA.png"))
+                .andExpect(jsonPath("$.iconUrl").value("iconA.png"))
+                // Ensure no internal info is leaked
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.activeModules").doesNotExist());
+                
+        // Invalid slug
+        mockMvc.perform(get("/api/settings/public/invalid-slug-999"))
+                .andExpect(status().isNotFound());
+                
+        // Assert context is clean
+        org.junit.jupiter.api.Assertions.assertNull(com.checador.security.TenantContext.getTenantId(), "Tenant context leaked");
+    }
+
     @Test
     public void testRepositoryMethodsIsolation() {
         Long tenantA = 1L;
