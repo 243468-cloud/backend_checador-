@@ -29,11 +29,14 @@ public class Branch extends BaseEntity {
     private Double longitude;
 
     @Column(name = "radius_meters", nullable = false)
+    @Builder.Default
     private Integer radiusMeters = 100;
 
     @Column(name = "tolerance_minutes", nullable = false)
+    @Builder.Default
     private Integer toleranceMinutes = 10;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean active = true;
 }

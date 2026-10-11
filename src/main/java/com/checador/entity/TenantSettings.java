@@ -30,15 +30,18 @@ public class TenantSettings extends BaseEntity {
     private String iconUrl;
 
     @Column(name = "primary_color", length = 20)
-    private String primaryColor;
+    @Builder.Default
+    private String primaryColor = "#4F46E5";
     
     @Column(name = "tolerance_minutes")
+    @Builder.Default
     private Integer toleranceMinutes = 10;
 
     // --- Permisos y Módulos de la Empresa ---
     
     @Enumerated(EnumType.STRING)
     @Column(name = "subscription_status", length = 20)
+    @Builder.Default
     private SubscriptionStatus subscriptionStatus = SubscriptionStatus.ACTIVE;
 
     @Transient

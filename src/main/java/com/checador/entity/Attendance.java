@@ -68,9 +68,11 @@ public class Attendance extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private AttendanceStatus status = AttendanceStatus.IN_SHIFT;
 
     @Column(name = "late_minutes")
+    @Builder.Default
     private Integer lateMinutes = 0;
 
     @Column(name = "hours_worked", columnDefinition = "DECIMAL(5,2)")

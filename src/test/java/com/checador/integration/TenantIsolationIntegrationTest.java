@@ -65,6 +65,9 @@ public class TenantIsolationIntegrationTest {
     private com.checador.repository.TenantModuleRepository tenantModuleRepository;
 
     @Autowired
+    private com.checador.service.CompanyRegistrationService companyRegistrationService;
+
+    @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @BeforeEach
@@ -438,6 +441,24 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
                 .header("X-Cron-Key", "default-cron-key-change-me"))
                 .andExpect(status().isAccepted());
+    }
+
+    @Test
+    public void testCompanyRegistrationDefaults() {
+        com.checador.entity.TenantSettings ts = companyRegistrationService.registerCompany(
+                "Nueva Empresa Test",
+                "nueva-empresa-test",
+                "Admin Nuevo",
+                "admin.test.nuevo",
+                "admin@testnuevo.com",
+                "password123"
+        );
+        org.junit.jupiter.api.Assertions.assertNotNull(ts, "TenantSettings no debe ser nulo");
+        org.junit.jupiter.api.Assertions.assertEquals("#4F46E5", ts.getPrimaryColor(), "Debe tener color primario por defecto");
+        org.junit.jupiter.api.Assertions.assertEquals(10, ts.getToleranceMinutes(), "Debe tener tolerancia por defecto");
+        org.junit.jupiter.api.Assertions.assertNotNull(ts.getActiveModules(), "activeModules no debe ser nulo");
+        org.junit.jupiter.api.Assertions.assertFalse(ts.getActiveModules().isEmpty(), "activeModules no debe estar vacío");
+        org.junit.jupiter.api.Assertions.assertTrue(ts.getActiveModules().contains("schedules"));
     }
 }
 

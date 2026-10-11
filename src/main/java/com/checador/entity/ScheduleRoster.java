@@ -51,6 +51,7 @@ public class ScheduleRoster extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status_type", nullable = false, length = 20)
+    @Builder.Default
     private RosterStatus statusType = RosterStatus.NORMAL;
 
     /** Lunes de la semana a la que pertenece este roster */

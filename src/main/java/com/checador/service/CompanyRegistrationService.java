@@ -21,8 +21,10 @@ public class CompanyRegistrationService {
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.checador.repository.TenantModuleRepository tenantModuleRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
-    @Transactional
     public TenantSettings registerCompany(
             String companyName,
             String slug,
@@ -31,61 +33,74 @@ public class CompanyRegistrationService {
             String adminEmail,
             String adminPassword) {
         
-        if (tenantSettingsRepository.findBySlug(slug).isPresent()) {
+        Integer slugCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM tenant_settings WHERE slug = ?", Integer.class, slug);
+        if (slugCount != null && slugCount > 0) {
             throw new IllegalArgumentException("El identificador URL (slug) ya está en uso.");
         }
-        if (userRepository.existsByUsername(adminUsername)) {
+        Integer userCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE username = ?", Integer.class, adminUsername);
+        if (userCount != null && userCount > 0) {
             throw new IllegalArgumentException("El nombre de usuario del administrador ya existe.");
         }
 
         // 1. Generar un nuevo tenantId (obtenemos el máximo actual y sumamos 1)
-        Long currentMaxTenantId = tenantSettingsRepository.findMaxTenantId();
+        Long currentMaxTenantId = jdbcTemplate.queryForObject(
+                "SELECT COALESCE(MAX(tenant_id), 0) FROM tenant_settings", Long.class);
         Long newTenantId = (currentMaxTenantId == null ? 0L : currentMaxTenantId) + 1;
 
-        // 2. Establecemos el tenant en el contexto actual temporalmente para que Hibernate lo asigne en los @PrePersist
+        // 2. Establecemos el tenant en el contexto antes de abrir la transacción JPA
         TenantContext.setTenantId(newTenantId);
 
         try {
-            // 3. Crear la configuración del Tenant
-            TenantSettings tenantSettings = TenantSettings.builder()
-                    .companyName(companyName)
-                    .slug(slug)
-                    .primaryColor("#4F46E5") // Color por defecto
-                    .toleranceMinutes(10)
-                    .subscriptionStatus(TenantSettings.SubscriptionStatus.TRIAL)
-                    .activeModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals")))
-                    .build();
-            // Sobrescribimos manualmente el tenantId por si el @PrePersist no actúa antes del primer guardado
-            tenantSettings.setTenantId(newTenantId);
-            tenantSettings = tenantSettingsRepository.save(tenantSettings);
+            return transactionTemplate.execute(status -> {
+                // 3. Crear la configuración del Tenant
+                TenantSettings tenantSettings = TenantSettings.builder()
+                        .companyName(companyName)
+                        .slug(slug)
+                        .primaryColor("#4F46E5") // Color por defecto
+                        .toleranceMinutes(10)
+                        .subscriptionStatus(TenantSettings.SubscriptionStatus.TRIAL)
+                        .activeModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals")))
+                        .build();
+                tenantSettings.setTenantId(newTenantId);
+                tenantSettings = tenantSettingsRepository.save(tenantSettings);
 
-            // 4. Crear la Sucursal Matriz
-            Branch mainBranch = Branch.builder()
-                    .name("Matriz")
-                    .address("Dirección principal")
-                    .latitude(0.0) // Deben configurarlo luego
-                    .longitude(0.0)
-                    .radiusMeters(500)
-                    .toleranceMinutes(10)
-                    .active(true)
-                    .build();
-            mainBranch.setTenantId(newTenantId);
-            mainBranch = branchRepository.save(mainBranch);
+                if (tenantSettings.getActiveModules() != null) {
+                    var moduleEntities = tenantSettings.getActiveModules().stream()
+                            .map(m -> new com.checador.entity.TenantModule(newTenantId, m))
+                            .toList();
+                    tenantModuleRepository.saveAll(moduleEntities);
+                }
 
-            // 5. Crear el Usuario Administrador
-            User adminUser = User.builder()
-                    .username(adminUsername)
-                    .password(passwordEncoder.encode(adminPassword))
-                    .fullName(adminFullName)
-                    .email(adminEmail)
-                    .role(Role.ADMIN) // Le damos permisos de administrador
-                    .branch(mainBranch)
-                    .active(true)
-                    .build();
-            adminUser.setTenantId(newTenantId);
-            userRepository.save(adminUser);
+                // 4. Crear la Sucursal Matriz
+                Branch mainBranch = Branch.builder()
+                        .name("Matriz")
+                        .address("Dirección principal")
+                        .latitude(0.0) // Deben configurarlo luego
+                        .longitude(0.0)
+                        .radiusMeters(500)
+                        .toleranceMinutes(10)
+                        .active(true)
+                        .build();
+                mainBranch.setTenantId(newTenantId);
+                mainBranch = branchRepository.save(mainBranch);
 
-            return tenantSettings;
+                // 5. Crear el Usuario Administrador
+                User adminUser = User.builder()
+                        .username(adminUsername)
+                        .password(passwordEncoder.encode(adminPassword))
+                        .fullName(adminFullName)
+                        .email(adminEmail)
+                        .role(Role.ADMIN) // Le damos permisos de administrador
+                        .branch(mainBranch)
+                        .active(true)
+                        .build();
+                adminUser.setTenantId(newTenantId);
+                userRepository.save(adminUser);
+
+                return tenantSettings;
+            });
         } finally {
             // 6. Limpiamos el contexto para no afectar otras peticiones
             TenantContext.clear();

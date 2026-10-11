@@ -51,6 +51,7 @@ public class User extends BaseEntity implements UserDetails {
     private Branch branch;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean active = true;
 
     @Column(name = "profile_picture")
