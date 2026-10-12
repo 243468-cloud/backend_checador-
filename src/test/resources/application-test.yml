@@ -28,3 +28,7 @@ app:
     public-key: test
     private-key: test
     subject: mailto:test@test.com
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG

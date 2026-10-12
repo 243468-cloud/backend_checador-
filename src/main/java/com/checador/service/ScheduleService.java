@@ -141,6 +141,9 @@ public class ScheduleService {
     /** Elimina completamente la semana de una sucursal. */
     @Transactional
     public void deleteRoster(Long branchId, LocalDate weekStart) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        branchRepository.findByIdAndTenantId(branchId, tenantId)
+            .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
         rosterRepository.deleteByBranchIdAndWeekStart(branchId, weekStart);
     }
 
@@ -174,6 +177,9 @@ public class ScheduleService {
      * horas programadas, horas extra, solapamientos y KPIs del ROL semanal.
      */
     public ScheduleSummaryDTO calculateScheduleSummary(Long branchId, LocalDate weekStart) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        branchRepository.findByIdAndTenantId(branchId, tenantId)
+            .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
         List<ScheduleRoster> rosterCells = rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
 
         // Agrupar por nombre real del empleado (parseando JSON si es necesario)

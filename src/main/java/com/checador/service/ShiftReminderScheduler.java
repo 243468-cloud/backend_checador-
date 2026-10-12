@@ -26,6 +26,7 @@ public class ShiftReminderScheduler {
     private final NotificationRepository notificationRepository;
     private final ShiftConfigService shiftConfigService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -33,7 +34,6 @@ public class ShiftReminderScheduler {
      * Cron Job running every 60 seconds to check 15-minute shift entrance/exit reminders.
      */
     @Scheduled(cron = "0 * * * * *")
-    @Transactional
     public void processShiftReminders() {
         java.time.ZoneId mxZone = java.time.ZoneId.of("America/Mexico_City");
         LocalDate today = LocalDate.now(mxZone);
@@ -45,37 +45,42 @@ public class ShiftReminderScheduler {
         for (Long tenantId : tenantIds) {
             try {
                 com.checador.security.TenantContext.setTenantId(tenantId);
-                List<User> activeEmployees = userRepository.findAll().stream()
-                        .filter(u -> u.getRole() == Role.EMPLOYEE && Boolean.TRUE.equals(u.getActive()))
-                        .toList();
+                transactionTemplate.execute(status -> {
+                    List<User> activeEmployees = userRepository.findAll().stream()
+                            .filter(u -> u.getRole() == Role.EMPLOYEE && Boolean.TRUE.equals(u.getActive()))
+                            .toList();
 
-        for (User emp : activeEmployees) {
-            ShiftType shift = emp.getShiftType();
-            if (shift == null) continue;
+                    for (User emp : activeEmployees) {
+                        ShiftType shift = emp.getShiftType();
+                        if (shift == null) continue;
 
-            LocalTime startTime = getShiftStartTime(shift);
-            LocalTime endTime = getShiftEndTime(shift);
+                        LocalTime startTime = getShiftStartTime(shift);
+                        LocalTime endTime = getShiftEndTime(shift);
 
-            if (startTime == null || endTime == null) continue;
+                        if (startTime == null || endTime == null) continue;
 
-            // 1. Check-In Reminder (15 Minutes Before Start Time)
-            LocalTime checkInReminderTime = startTime.minusMinutes(15);
-            if (nowTime.equals(checkInReminderTime)) {
-                sendCheckInReminderIfNotCheckedIn(emp, today, shift, startTime);
-            }
+                        // 1. Check-In Reminder (15 Minutes Before Start Time)
+                        LocalTime checkInReminderTime = startTime.minusMinutes(15);
+                        if (nowTime.equals(checkInReminderTime)) {
+                            sendCheckInReminderIfNotCheckedIn(emp, today, shift, startTime);
+                        }
 
-            // 2. Check-Out Reminder (15 Minutes Before End Time)
-            LocalTime checkOutReminderTime = endTime.minusMinutes(15);
-            if (nowTime.equals(checkOutReminderTime)) {
-                sendCheckOutReminderIfNotCheckedOut(emp, today, shift, endTime);
-            }
+                        // 2. Check-Out Reminder (15 Minutes Before End Time)
+                        LocalTime checkOutReminderTime = endTime.minusMinutes(15);
+                        if (nowTime.equals(checkOutReminderTime)) {
+                            sendCheckOutReminderIfNotCheckedOut(emp, today, shift, endTime);
+                        }
 
-            // 3. Unregistered Exit Penalty Check (6 Hours After Shift End Time - Extended Overtime Window)
-            LocalTime unregisteredCheckOutDeadline = endTime.plusHours(6);
-            if (nowTime.equals(unregisteredCheckOutDeadline)) {
-                flagUnregisteredCheckOutAsLate(emp, today, shift);
-            }
-            }
+                        // 3. Unregistered Exit Penalty Check (6 Hours After Shift End Time - Extended Overtime Window)
+                        LocalTime unregisteredCheckOutDeadline = endTime.plusHours(6);
+                        if (nowTime.equals(unregisteredCheckOutDeadline)) {
+                            flagUnregisteredCheckOutAsLate(emp, today, shift);
+                        }
+                    }
+                    return null;
+                });
+            } catch (Exception e) {
+                log.error("Error al procesar recordatorios para tenant " + tenantId, e);
             } finally {
                 com.checador.security.TenantContext.clear();
             }
@@ -87,7 +92,7 @@ public class ShiftReminderScheduler {
         boolean alreadyCheckedIn = attOpt.isPresent() && attOpt.get().getCheckInTime() != null;
 
         if (!alreadyCheckedIn) {
-            String title = "⏰ Recordatorio de Entrada — Vía Gourmet";
+            String title = "⏰ Recordatorio de Entrada — Sistema Checador";
             String body = "Hola " + emp.getFullName() + ", tu turno " + translateShift(shift) +
                     " inicia en 15 minutos (" + startTime.format(TIME_FMT) + "). No olvides registrar tu ENTRADA a tiempo.";
 
@@ -103,7 +108,7 @@ public class ShiftReminderScheduler {
                 && attOpt.get().getCheckOutTime() == null;
 
         if (checkedInAndNotCheckedOut) {
-            String title = "🔔 Recordatorio de Salida — Vía Gourmet";
+            String title = "🔔 Recordatorio de Salida — Sistema Checador";
             String body = "Hola " + emp.getFullName() + ", tu turno " + translateShift(shift) +
                     " finaliza en 15 minutos (" + endTime.format(TIME_FMT) + "). Recuerda registrar tu SALIDA al concluir.";
 

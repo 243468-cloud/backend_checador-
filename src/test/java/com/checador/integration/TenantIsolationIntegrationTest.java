@@ -70,6 +70,9 @@ public class TenantIsolationIntegrationTest {
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+
     @BeforeEach
     public void setup() {
         jdbcTemplate.execute("DELETE FROM schedule_rosters");
@@ -250,6 +253,12 @@ public class TenantIsolationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
                 .andExpect(status().is4xxClientError());
+
+        mockMvc.perform(put("/api/leaves/" + leaveRequestIdTenantB + "/reject")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"adminNotes\": \"Rechazo test\"}"))
+                .andExpect(status().is4xxClientError());
     }
 
     // --- ScheduleRoster ---
@@ -265,6 +274,11 @@ public class TenantIsolationIntegrationTest {
                 .header("Authorization", "Bearer " + tokenTenantA)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"branchId\":" + branchIdTenantB + ", \"weekStart\":\"" + LocalDate.now() + "\", \"cells\":[]}"))
+                .andExpect(status().is4xxClientError());
+
+        // Delete schedule by branchId B using tenant A token
+        mockMvc.perform(delete("/api/schedules?branchId=" + branchIdTenantB + "&weekStart=" + LocalDate.now())
+                .header("Authorization", "Bearer " + tokenTenantA))
                 .andExpect(status().is4xxClientError());
     }
 
@@ -359,36 +373,39 @@ public class TenantIsolationIntegrationTest {
         Long tenantA = 1L;
         Long tenantB = 2L;
         
-        // Tenant A intenta operar sobre los IDs del Tenant B
+        // Tenant A intenta operar sobre los IDs del Tenant B dentro de una transaccion
         com.checador.security.TenantContext.setTenantId(tenantA);
         try {
-            entityManager.clear();
-            
-            // USER
-            org.junit.jupiter.api.Assertions.assertTrue(userRepository.findByIdAndTenantId(employeeIdTenantB, tenantA).isEmpty(), "User read leak");
-            org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsByIdAndTenantId(employeeIdTenantB, tenantA), "User exists leak");
-            userRepository.deleteByIdAndTenantId(employeeIdTenantB, tenantA);
-            
-            // BRANCH
-            org.junit.jupiter.api.Assertions.assertTrue(branchRepository.findByIdAndTenantId(branchIdTenantB, tenantA).isEmpty(), "Branch read leak");
-            org.junit.jupiter.api.Assertions.assertFalse(branchRepository.existsByIdAndTenantId(branchIdTenantB, tenantA), "Branch exists leak");
-            branchRepository.deleteByIdAndTenantId(branchIdTenantB, tenantA);
-            
-            // ATTENDANCE
-            org.junit.jupiter.api.Assertions.assertTrue(attendanceRepository.findByIdAndTenantId(attendanceIdTenantB, tenantA).isEmpty(), "Attendance read leak");
-            org.junit.jupiter.api.Assertions.assertFalse(attendanceRepository.existsByIdAndTenantId(attendanceIdTenantB, tenantA), "Attendance exists leak");
-            attendanceRepository.deleteByIdAndTenantId(attendanceIdTenantB, tenantA);
-            
-            // LEAVE REQUEST
-            org.junit.jupiter.api.Assertions.assertTrue(leaveRequestRepository.findByIdAndTenantId(leaveRequestIdTenantB, tenantA).isEmpty(), "LeaveRequest read leak");
-            org.junit.jupiter.api.Assertions.assertFalse(leaveRequestRepository.existsByIdAndTenantId(leaveRequestIdTenantB, tenantA), "LeaveRequest exists leak");
-            leaveRequestRepository.deleteByIdAndTenantId(leaveRequestIdTenantB, tenantA);
-            
-            // SCHEDULE ROSTER
-            org.junit.jupiter.api.Assertions.assertTrue(scheduleRosterRepository.findByIdAndTenantId(rosterIdTenantB, tenantA).isEmpty(), "ScheduleRoster read leak");
-            org.junit.jupiter.api.Assertions.assertFalse(scheduleRosterRepository.existsByIdAndTenantId(rosterIdTenantB, tenantA), "ScheduleRoster exists leak");
-            scheduleRosterRepository.deleteByIdAndTenantId(rosterIdTenantB, tenantA);
-            
+            transactionTemplate.execute(status -> {
+                entityManager.clear();
+                
+                // USER
+                org.junit.jupiter.api.Assertions.assertTrue(userRepository.findByIdAndTenantId(employeeIdTenantB, tenantA).isEmpty(), "User read leak");
+                org.junit.jupiter.api.Assertions.assertFalse(userRepository.existsByIdAndTenantId(employeeIdTenantB, tenantA), "User exists leak");
+                userRepository.deleteByIdAndTenantId(employeeIdTenantB, tenantA);
+                
+                // BRANCH
+                org.junit.jupiter.api.Assertions.assertTrue(branchRepository.findByIdAndTenantId(branchIdTenantB, tenantA).isEmpty(), "Branch read leak");
+                org.junit.jupiter.api.Assertions.assertFalse(branchRepository.existsByIdAndTenantId(branchIdTenantB, tenantA), "Branch exists leak");
+                branchRepository.deleteByIdAndTenantId(branchIdTenantB, tenantA);
+                
+                // ATTENDANCE
+                org.junit.jupiter.api.Assertions.assertTrue(attendanceRepository.findByIdAndTenantId(attendanceIdTenantB, tenantA).isEmpty(), "Attendance read leak");
+                org.junit.jupiter.api.Assertions.assertFalse(attendanceRepository.existsByIdAndTenantId(attendanceIdTenantB, tenantA), "Attendance exists leak");
+                attendanceRepository.deleteByIdAndTenantId(attendanceIdTenantB, tenantA);
+                
+                // LEAVE REQUEST
+                org.junit.jupiter.api.Assertions.assertTrue(leaveRequestRepository.findByIdAndTenantId(leaveRequestIdTenantB, tenantA).isEmpty(), "LeaveRequest read leak");
+                org.junit.jupiter.api.Assertions.assertFalse(leaveRequestRepository.existsByIdAndTenantId(leaveRequestIdTenantB, tenantA), "LeaveRequest exists leak");
+                leaveRequestRepository.deleteByIdAndTenantId(leaveRequestIdTenantB, tenantA);
+                
+                // SCHEDULE ROSTER
+                org.junit.jupiter.api.Assertions.assertTrue(scheduleRosterRepository.findByIdAndTenantId(rosterIdTenantB, tenantA).isEmpty(), "ScheduleRoster read leak");
+                org.junit.jupiter.api.Assertions.assertFalse(scheduleRosterRepository.existsByIdAndTenantId(rosterIdTenantB, tenantA), "ScheduleRoster exists leak");
+                scheduleRosterRepository.deleteByIdAndTenantId(rosterIdTenantB, tenantA);
+
+                return null;
+            });
         } finally {
             com.checador.security.TenantContext.clear();
         }
