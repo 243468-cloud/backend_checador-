@@ -38,11 +38,6 @@ public class CompanyRegistrationService {
         if (slugCount != null && slugCount > 0) {
             throw new IllegalArgumentException("El identificador URL (slug) ya está en uso.");
         }
-        Integer userCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM users WHERE username = ?", Integer.class, adminUsername);
-        if (userCount != null && userCount > 0) {
-            throw new IllegalArgumentException("El nombre de usuario del administrador ya existe.");
-        }
 
         // 1. Generar un nuevo tenantId (obtenemos el máximo actual y sumamos 1)
         Long currentMaxTenantId = jdbcTemplate.queryForObject(

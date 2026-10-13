@@ -65,7 +65,11 @@ public class JwtService {
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+        Map<String, Object> claims = new HashMap<>();
+        if (userDetails instanceof com.checador.entity.User user && user.getTenantId() != null) {
+            claims.put("tenantId", user.getTenantId());
+        }
+        return buildToken(claims, userDetails, refreshExpiration);
     }
 
     private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {

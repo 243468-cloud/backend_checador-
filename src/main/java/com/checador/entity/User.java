@@ -13,6 +13,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Entity
 @Table(
     name = "users",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_users_tenant_username", columnNames = {"tenant_id", "username"}),
+        @UniqueConstraint(name = "uk_users_tenant_email",    columnNames = {"tenant_id", "email"})
+    },
     indexes = {
         @Index(name = "idx_users_branch_active", columnList = "branch_id, active"),
         @Index(name = "idx_users_role",          columnList = "role")
@@ -29,7 +33,7 @@ public class User extends BaseEntity implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, length = 100)
     private String username;
 
     @Column(nullable = false)
@@ -38,7 +42,7 @@ public class User extends BaseEntity implements UserDetails {
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
-    @Column(length = 100, unique = true)
+    @Column(length = 100)
     private String email;
 
     @Enumerated(EnumType.STRING)

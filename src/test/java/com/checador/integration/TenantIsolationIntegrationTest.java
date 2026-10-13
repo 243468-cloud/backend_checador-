@@ -569,5 +569,74 @@ public class TenantIsolationIntegrationTest {
                 jdbcTemplate.queryForObject("SELECT logo_url FROM tenant_settings WHERE slug = 'tenant-b'", String.class),
                 "El tenant B no debe verse afectado");
     }
+
+    @Test
+    public void testLoginWithSameUsernameInTwoDifferentTenants() throws Exception {
+        // 1. Crear usuario 'admin' en Tenant 1 (via-gourmet)
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            User adminVia = new User();
+            adminVia.setUsername("admin");
+            adminVia.setPassword(passwordEncoder.encode("passVia"));
+            adminVia.setFullName("Admin Via Gourmet");
+            adminVia.setRole(Role.ADMIN);
+            adminVia.setTenantId(1L);
+            userRepository.save(adminVia);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // 2. Crear usuario 'admin' en Tenant 2 (tenant-b)
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            User adminB = new User();
+            adminB.setUsername("admin");
+            adminB.setPassword(passwordEncoder.encode("passB"));
+            adminB.setFullName("Admin Tenant B");
+            adminB.setRole(Role.ADMIN);
+            adminB.setTenantId(2L);
+            userRepository.save(adminB);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // 3. Login en Tenant 1 con slug 'via-gourmet' -> Resuelve a Tenant 1
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"admin\",\"password\":\"passVia\",\"slug\":\"via-gourmet\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value(1))
+                .andExpect(jsonPath("$.tenantSlug").value("via-gourmet"))
+                .andExpect(jsonPath("$.fullName").value("Admin Via Gourmet"))
+                .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andExpect(jsonPath("$.token").isString());
+
+        // 4. Login en Tenant 2 con slug 'tenant-b' -> Resuelve a Tenant 2
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"admin\",\"password\":\"passB\",\"slug\":\"tenant-b\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value(2))
+                .andExpect(jsonPath("$.tenantSlug").value("tenant-b"))
+                .andExpect(jsonPath("$.fullName").value("Admin Tenant B"))
+                .andExpect(jsonPath("$.role").value("ADMIN"))
+                .andExpect(jsonPath("$.token").isString());
+
+        // 5. Intento con contraseña de Tenant 1 en portal de Tenant 2 -> 401
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"admin\",\"password\":\"passVia\",\"slug\":\"tenant-b\"}"))
+                .andExpect(status().isUnauthorized());
+
+        // 6. Intento sin slug cuando 'admin' existe en múltiples empresas -> 400 requiriendo slug
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"admin\",\"password\":\"passVia\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("múltiples empresas")));
+
+        // 7. Contexto de tenant queda limpio tras la ejecución
+        org.junit.jupiter.api.Assertions.assertNull(com.checador.security.TenantContext.getTenantId());
+    }
 }
 

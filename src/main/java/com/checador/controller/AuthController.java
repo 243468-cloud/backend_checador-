@@ -25,6 +25,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserService userService;
     private final com.checador.service.BranchService branchService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerEmployee(@Valid @RequestBody RegisterRequest request) {
@@ -61,10 +62,43 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         String username = request.username() != null ? request.username().trim() : "";
         String password = request.password() != null ? request.password().trim() : "";
+        String slug = request.slug() != null ? request.slug().trim() : null;
+
+        Long tenantId = null;
+        String tenantSlug = null;
+
+        if (slug != null && !slug.isBlank()) {
+            try {
+                tenantId = jdbcTemplate.queryForObject(
+                        "SELECT tenant_id FROM tenant_settings WHERE slug = ?", Long.class, slug);
+                tenantSlug = slug;
+            } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+                return ResponseEntity.status(401).body(Map.of("error", "Empresa no encontrada o credenciales inválidas."));
+            }
+        } else {
+            java.util.List<Long> matchedTenants = jdbcTemplate.query(
+                    "SELECT tenant_id FROM users WHERE LOWER(username) = LOWER(?)",
+                    (rs, rowNum) -> rs.getLong("tenant_id"),
+                    username
+            );
+            if (matchedTenants.isEmpty()) {
+                return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
+            }
+            if (matchedTenants.size() > 1) {
+                return ResponseEntity.status(400).body(Map.of("error",
+                        "El usuario existe en múltiples empresas. Debe ingresar desde el portal de su empresa (/su-empresa/login)."));
+            }
+            tenantId = matchedTenants.get(0);
+            try {
+                tenantSlug = jdbcTemplate.queryForObject(
+                        "SELECT slug FROM tenant_settings WHERE tenant_id = ?", String.class, tenantId);
+            } catch (Exception ignored) {}
+        }
+
+        com.checador.security.TenantContext.setTenantId(tenantId);
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password));
@@ -79,6 +113,8 @@ public class AuthController {
             responseData.put("role", user.getRole().name());
             responseData.put("fullName", user.getFullName());
             responseData.put("userId", user.getId());
+            responseData.put("tenantId", user.getTenantId());
+            responseData.put("tenantSlug", tenantSlug);
             responseData.put("branchId", user.getBranch() != null ? user.getBranch().getId() : null);
             responseData.put("branchName", user.getBranch() != null ? user.getBranch().getName() : null);
             responseData.put("shiftType", user.getShiftType() != null ? user.getShiftType().name() : null);
@@ -88,6 +124,8 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
         } catch (Exception e) {
             return ResponseEntity.status(400).body(Map.of("error", "Error en inicio de sesión: " + e.getMessage()));
+        } finally {
+            com.checador.security.TenantContext.clear();
         }
     }
 
@@ -99,12 +137,20 @@ public class AuthController {
         }
         try {
             String username = jwtService.extractUsername(refreshToken);
-            User user = (User) userService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(refreshToken, user)) {
-                String newToken = jwtService.generateToken(user);
-                return ResponseEntity.ok(Map.of("token", newToken));
-            } else {
-                return ResponseEntity.status(401).body(Map.of("error", "Refresh token expirado o inválido"));
+            Long tenantId = jwtService.extractTenantId(refreshToken);
+            if (tenantId != null) {
+                com.checador.security.TenantContext.setTenantId(tenantId);
+            }
+            try {
+                User user = (User) userService.loadUserByUsername(username);
+                if (jwtService.isTokenValid(refreshToken, user)) {
+                    String newToken = jwtService.generateToken(user);
+                    return ResponseEntity.ok(Map.of("token", newToken));
+                } else {
+                    return ResponseEntity.status(401).body(Map.of("error", "Refresh token expirado o inválido"));
+                }
+            } finally {
+                com.checador.security.TenantContext.clear();
             }
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of("error", "Refresh token inválido"));
@@ -126,6 +172,7 @@ public class AuthController {
         res.put("role", user.getRole().name());
         res.put("fullName", user.getFullName());
         res.put("userId", user.getId());
+        res.put("tenantId", user.getTenantId());
         res.put("branchId", user.getBranch() != null ? user.getBranch().getId() : null);
         res.put("branchName", user.getBranch() != null ? user.getBranch().getName() : null);
         res.put("shiftType", user.getShiftType() != null ? user.getShiftType().name() : null);
@@ -135,7 +182,8 @@ public class AuthController {
 
     public record LoginRequest(
             @NotBlank(message = "El nombre de usuario es requerido") String username,
-            @NotBlank(message = "La contraseña es requerida") String password
+            @NotBlank(message = "La contraseña es requerida") String password,
+            String slug
     ) {}
 
     public record RegisterRequest(
