@@ -685,5 +685,49 @@ public class TenantIsolationIntegrationTest {
                 .param("weekStart", date.toString()))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    public void testViaGourmetReceives4ModulesAndLateArrivalsGuard() throws Exception {
+        // 1. Login como admin de Vía Gourmet
+        var loginResult = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"adminA\",\"password\":\"password\",\"slug\":\"via-gourmet\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantSlug").value("via-gourmet"))
+                .andReturn();
+
+        String tokenVia = com.jayway.jsonpath.JsonPath.read(loginResult.getResponse().getContentAsString(), "$.token");
+
+        // 2. Consulta GET /api/settings/current (de donde sale activeModules para el frontend)
+        mockMvc.perform(get("/api/settings/current")
+                .header("Authorization", "Bearer " + tokenVia))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeModules.length()").value(4))
+                .andExpect(jsonPath("$.activeModules", org.hamcrest.Matchers.hasItems("schedules", "lateArrivals", "reports", "rankings")));
+
+        // 3. Vía Gourmet puede acceder al endpoint protegido con @RequiresModule("lateArrivals")
+        mockMvc.perform(get("/api/attendance/admin/stats/late")
+                .header("Authorization", "Bearer " + tokenVia))
+                .andExpect(status().isOk());
+
+        // 4. Tenant B (sin lateArrivals) intenta acceder al endpoint -> 403 Forbidden
+        User adminB = new User();
+        adminB.setUsername("adminB_late");
+        adminB.setPassword(passwordEncoder.encode("pass"));
+        adminB.setFullName("Admin B");
+        adminB.setRole(Role.ADMIN);
+        adminB.setTenantId(2L);
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            adminB = userRepository.save(adminB);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+        String tokenB = jwtService.generateToken(adminB);
+
+        mockMvc.perform(get("/api/attendance/admin/stats/late")
+                .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isForbidden());
+    }
 }
 
