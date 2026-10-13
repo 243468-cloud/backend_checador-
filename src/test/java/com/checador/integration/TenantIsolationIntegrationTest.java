@@ -425,22 +425,16 @@ public class TenantIsolationIntegrationTest {
     
     @Test
     public void testThreadWithoutContextThrowsException() {
-        // Simulamos un job/hilo sin contexto tenant y desactivamos el flag systemReady (arranque terminado)
+        // Simulamos un job/hilo sin contexto tenant
         com.checador.security.TenantContext.clear();
-        boolean previousReady = com.checador.security.TenantContext.systemReady;
-        com.checador.security.TenantContext.systemReady = true;
-        
-        try {
-            org.springframework.transaction.CannotCreateTransactionException ex = org.junit.jupiter.api.Assertions.assertThrows(
-                org.springframework.transaction.CannotCreateTransactionException.class, 
-                () -> branchRepository.findAll(), 
-                "El hilo sin contexto debe fallar fail-closed"
-            );
-            org.junit.jupiter.api.Assertions.assertTrue(ex.getCause() instanceof IllegalStateException, "La causa debe ser IllegalStateException");
-            org.junit.jupiter.api.Assertions.assertEquals("Se detectó una operación en base de datos sin un tenant en el contexto.", ex.getCause().getMessage());
-        } finally {
-            com.checador.security.TenantContext.systemReady = previousReady;
-        }
+
+        org.springframework.transaction.CannotCreateTransactionException ex = org.junit.jupiter.api.Assertions.assertThrows(
+            org.springframework.transaction.CannotCreateTransactionException.class, 
+            () -> branchRepository.findAll(), 
+            "El hilo sin contexto debe fallar fail-closed"
+        );
+        org.junit.jupiter.api.Assertions.assertTrue(ex.getCause() instanceof IllegalStateException, "La causa debe ser IllegalStateException");
+        org.junit.jupiter.api.Assertions.assertEquals("Se detectó una operación en base de datos sin un tenant en el contexto.", ex.getCause().getMessage());
     }
 
     @Test
@@ -793,6 +787,20 @@ public class TenantIsolationIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tenantId").value(1))
                 .andExpect(jsonPath("$.fullName").value("Admin Empresa A"));
+    }
+
+    @Test
+    public void testNoRowsExistWithTenantIdMinusOne() {
+        String[] tables = {
+            "users", "branches", "attendances", "leave_requests",
+            "schedule_rosters", "tenant_settings", "tenant_modules"
+        };
+        for (String table : tables) {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM " + table + " WHERE tenant_id = -1", Integer.class);
+            org.junit.jupiter.api.Assertions.assertEquals(0, count,
+                    "No deben existir filas con tenant_id = -1 en la tabla " + table);
+        }
     }
 }
 

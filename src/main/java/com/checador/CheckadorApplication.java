@@ -23,12 +23,4 @@ public class CheckadorApplication {
         TimeZone.setDefault(TimeZone.getTimeZone("America/Mexico_City"));
         SpringApplication.run(CheckadorApplication.class, args);
     }
-
-    @org.springframework.stereotype.Component
-    public static class AppStartupListener implements org.springframework.context.ApplicationListener<org.springframework.boot.context.event.ApplicationReadyEvent> {
-        @Override
-        public void onApplicationEvent(org.springframework.boot.context.event.ApplicationReadyEvent event) {
-            com.checador.security.TenantContext.systemReady = true;
-        }
-    }
 }

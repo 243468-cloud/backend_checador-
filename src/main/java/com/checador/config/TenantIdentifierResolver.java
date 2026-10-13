@@ -10,13 +10,17 @@ public class TenantIdentifierResolver implements CurrentTenantIdentifierResolver
     @Override
     public Long resolveCurrentTenantIdentifier() {
         Long tenantId = TenantContext.getTenantId();
-        if (tenantId == null) {
-            if (!TenantContext.systemReady) {
-                return -1L;
-            }
-            throw new IllegalStateException("Se detectó una operación en base de datos sin un tenant en el contexto.");
+        if (tenantId != null) {
+            return tenantId;
         }
-        return tenantId;
+        // Permitir introspección de metadatos de Spring Data JPA durante la inicialización de repositorios
+        for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
+            if (element.getClassName().contains("PersistenceProvider") ||
+                element.getClassName().contains("JpaRepositoryFactory")) {
+                return 0L;
+            }
+        }
+        throw new IllegalStateException("Se detectó una operación en base de datos sin un tenant en el contexto.");
     }
 
     @Override
