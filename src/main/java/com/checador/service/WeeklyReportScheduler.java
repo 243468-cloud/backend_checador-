@@ -43,6 +43,15 @@ public class WeeklyReportScheduler {
         List<Long> tenantIds = jdbcTemplate.queryForList("SELECT DISTINCT tenant_id FROM users WHERE tenant_id > 0", Long.class);
 
         for (Long tenantId : tenantIds) {
+            String companyName = "Checador";
+            try {
+                String fetched = jdbcTemplate.queryForObject(
+                        "SELECT company_name FROM tenant_settings WHERE tenant_id = ?", String.class, tenantId);
+                if (fetched != null && !fetched.isBlank()) {
+                    companyName = fetched;
+                }
+            } catch (Exception ignored) {}
+
             try {
                 com.checador.security.TenantContext.setTenantId(tenantId);
                 List<Branch> branches = branchRepository.findAll();
@@ -57,13 +66,13 @@ public class WeeklyReportScheduler {
 
                         for (User admin : admins) {
                             if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
-                                String subject = "Reporte Automático de Asistencia - " + branch.getName();
+                                String subject = "Reporte Automático de Asistencia - " + branch.getName() + " (" + companyName + ")";
                                 String text = "<p>Hola " + admin.getFullName() + ",</p>" +
                                               "<p>Adjunto encontrarás el reporte de asistencia de la <b>" + periodLabel + "</b>.</p>" +
-                                              "<br><p>Saludos,<br>Sistema Checador</p>";
+                                              "<br><p>Saludos,<br>" + companyName + "</p>";
 
                                 mailService.sendEmailWithAttachment(admin.getEmail(), subject, text, excelData, "Reporte_Asistencia.xlsx");
-                                logger.info("Reporte enviado exitosamente a {} (Tenant {})", admin.getEmail(), tenantId);
+                                logger.info("Reporte enviado exitosamente a {} (Tenant {}, Empresa {})", admin.getEmail(), tenantId, companyName);
                             }
                         }
                     } catch (Exception e) {

@@ -73,8 +73,21 @@ public class TenantIsolationIntegrationTest {
     @Autowired
     private org.springframework.transaction.support.TransactionTemplate transactionTemplate;
 
+    @Autowired
+    private com.checador.service.ShiftReminderScheduler shiftReminderScheduler;
+
+    @Autowired
+    private com.checador.service.WeeklyReportScheduler weeklyReportScheduler;
+
+    @Autowired
+    private com.checador.repository.NotificationRepository notificationRepository;
+
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.checador.service.MailService mailService;
+
     @BeforeEach
     public void setup() {
+        jdbcTemplate.execute("DELETE FROM notifications");
         jdbcTemplate.execute("DELETE FROM schedule_rosters");
         jdbcTemplate.execute("DELETE FROM leave_requests");
         jdbcTemplate.execute("DELETE FROM attendances");
@@ -447,8 +460,18 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
                 .header("X-Cron-Key", "invalid-key"))
                 .andExpect(status().isUnauthorized());
+
+        // Clave vacía rechazada
+        mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
+                .header("X-Cron-Key", ""))
+                .andExpect(status().isUnauthorized());
+
+        // Clave en blanco rechazada
+        mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
+                .header("X-Cron-Key", "   "))
+                .andExpect(status().isUnauthorized());
                 
-        // Clave válida
+        // Clave válida -> 202
         mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
                 .header("X-Cron-Key", "default-cron-key-change-me"))
                 .andExpect(status().isAccepted());
@@ -678,6 +701,19 @@ public class TenantIsolationIntegrationTest {
                 .param("branchId", String.valueOf(branchIdTenantB))
                 .param("weekStart", date.toString()))
                 .andExpect(status().isNotFound());
+
+        // 7. Verificar que el registro de Tenant B sigue 100% intacto en base de datos
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            var rosterOpt = scheduleRosterRepository.findByIdAndTenantId(rosterIdTenantB, 2L);
+            org.junit.jupiter.api.Assertions.assertTrue(rosterOpt.isPresent(), "El registro de ScheduleRoster de Tenant B debe existir");
+            ScheduleRoster currentRosterB = rosterOpt.get();
+            org.junit.jupiter.api.Assertions.assertEquals("Employee B", currentRosterB.getEmployeeName());
+            org.junit.jupiter.api.Assertions.assertEquals("COCINA", currentRosterB.getAreaName());
+            org.junit.jupiter.api.Assertions.assertEquals(2L, currentRosterB.getTenantId());
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
     }
 
     @Test
@@ -801,6 +837,93 @@ public class TenantIsolationIntegrationTest {
             org.junit.jupiter.api.Assertions.assertEquals(0, count,
                     "No deben existir filas con tenant_id = -1 en la tabla " + table);
         }
+    }
+
+    @Test
+    public void testRawSqlForFindByIdAndTenantIdAndDeleteByIdAndTenantId() {
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            User testUser = new User();
+            testUser.setUsername("testsql");
+            testUser.setPassword(passwordEncoder.encode("pass"));
+            testUser.setFullName("Test SQL");
+            testUser.setRole(Role.EMPLOYEE);
+            testUser.setTenantId(1L);
+            testUser = userRepository.save(testUser);
+            Long testId = testUser.getId();
+
+            userRepository.findByIdAndTenantId(testId, 1L);
+            userRepository.deleteByIdAndTenantId(testId, 1L);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+    }
+
+    @Test
+    public void testSchedulersTwoTenantsBrandingAndIsolation() {
+        // Configurar empleado en Tenant 1 con turno MORNING
+        User empA = new User();
+        empA.setUsername("empA_sched");
+        empA.setPassword(passwordEncoder.encode("pass"));
+        empA.setFullName("Empleado A");
+        empA.setRole(Role.EMPLOYEE);
+        empA.setActive(true);
+        empA.setShiftType(ShiftType.MORNING);
+        empA.setTenantId(1L);
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            userRepository.save(empA);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // Configurar nuevo empleado en Tenant 2 sin asistencia registrada hoy
+        User empB = new User();
+        empB.setUsername("empB_sched");
+        empB.setPassword(passwordEncoder.encode("pass"));
+        empB.setFullName("Empleado B");
+        empB.setRole(Role.EMPLOYEE);
+        empB.setActive(true);
+        empB.setShiftType(ShiftType.MORNING);
+        empB.setTenantId(2L);
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            userRepository.save(empB);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // Ejecutar processShiftRemindersAt a las 06:45 (15 minutos antes de la entrada de las 07:00 de MORNING)
+        shiftReminderScheduler.processShiftRemindersAt(java.time.LocalTime.of(6, 45), LocalDate.now());
+
+        // Verificar notificaciones generadas para Tenant 1
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            var notifsA = notificationRepository.findAll();
+            org.junit.jupiter.api.Assertions.assertFalse(notifsA.isEmpty(), "Tenant 1 debe tener notificaciones generadas");
+            org.junit.jupiter.api.Assertions.assertTrue(
+                notifsA.stream().anyMatch(n -> n.getTitle().contains("Via Gourmet Test") && !n.getTitle().contains("Sistema Checador")),
+                "Notificaciones de Tenant 1 deben usar el nombre de la empresa 'Via Gourmet Test' y nunca 'Sistema Checador'"
+            );
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // Verificar notificaciones generadas para Tenant 2
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            var notifsB = notificationRepository.findAll();
+            org.junit.jupiter.api.Assertions.assertFalse(notifsB.isEmpty(), "Tenant 2 debe tener notificaciones generadas");
+            org.junit.jupiter.api.Assertions.assertTrue(
+                notifsB.stream().anyMatch(n -> n.getTitle().contains("Tenant B") && !n.getTitle().contains("Sistema Checador")),
+                "Notificaciones de Tenant 2 deben usar el nombre de la empresa 'Tenant B' y nunca 'Sistema Checador'"
+            );
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // Ejecutar WeeklyReportScheduler (itera tenants usando jdbcTemplate sin @TenantId)
+        weeklyReportScheduler.generateAndSendWeeklyReports();
     }
 }
 

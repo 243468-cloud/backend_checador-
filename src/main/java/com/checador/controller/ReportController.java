@@ -137,7 +137,10 @@ public class ReportController {
      */
     @PostMapping("/public/global/trigger-weekly")
     public ResponseEntity<?> triggerWeeklyReports(@RequestHeader(value = "X-Cron-Key", required = false) String providedKey) {
-        if (providedKey == null || cronApiKey == null || !java.security.MessageDigest.isEqual(providedKey.getBytes(), cronApiKey.getBytes())) {
+        if (providedKey == null || providedKey.isBlank() || cronApiKey == null || cronApiKey.isBlank()
+                || !java.security.MessageDigest.isEqual(
+                        providedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        cronApiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body(Map.of("error", "API Key inválida."));
         }
         

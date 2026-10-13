@@ -38,11 +38,25 @@ public class ShiftReminderScheduler {
         java.time.ZoneId mxZone = java.time.ZoneId.of("America/Mexico_City");
         LocalDate today = LocalDate.now(mxZone);
         LocalTime nowTime = LocalTime.now(mxZone).withSecond(0).withNano(0);
+        processShiftRemindersAt(nowTime, today);
+    }
 
-        // Obtener todos los tenants registrados
+    public void processShiftRemindersAt(LocalTime nowTime, LocalDate today) {
+        // Obtener todos los tenants registrados sin pasar por el filtro @TenantId
         List<Long> tenantIds = jdbcTemplate.queryForList("SELECT DISTINCT tenant_id FROM users WHERE tenant_id > 0", Long.class);
 
         for (Long tenantId : tenantIds) {
+            String companyName = "Checador";
+            try {
+                String fetched = jdbcTemplate.queryForObject(
+                        "SELECT company_name FROM tenant_settings WHERE tenant_id = ?", String.class, tenantId);
+                if (fetched != null && !fetched.isBlank()) {
+                    companyName = fetched;
+                }
+            } catch (Exception ignored) {}
+
+            final String finalCompanyName = companyName;
+
             try {
                 com.checador.security.TenantContext.setTenantId(tenantId);
                 transactionTemplate.execute(status -> {
@@ -62,19 +76,19 @@ public class ShiftReminderScheduler {
                         // 1. Check-In Reminder (15 Minutes Before Start Time)
                         LocalTime checkInReminderTime = startTime.minusMinutes(15);
                         if (nowTime.equals(checkInReminderTime)) {
-                            sendCheckInReminderIfNotCheckedIn(emp, today, shift, startTime);
+                            sendCheckInReminderIfNotCheckedIn(emp, today, shift, startTime, finalCompanyName);
                         }
 
                         // 2. Check-Out Reminder (15 Minutes Before End Time)
                         LocalTime checkOutReminderTime = endTime.minusMinutes(15);
                         if (nowTime.equals(checkOutReminderTime)) {
-                            sendCheckOutReminderIfNotCheckedOut(emp, today, shift, endTime);
+                            sendCheckOutReminderIfNotCheckedOut(emp, today, shift, endTime, finalCompanyName);
                         }
 
                         // 3. Unregistered Exit Penalty Check (6 Hours After Shift End Time - Extended Overtime Window)
                         LocalTime unregisteredCheckOutDeadline = endTime.plusHours(6);
                         if (nowTime.equals(unregisteredCheckOutDeadline)) {
-                            flagUnregisteredCheckOutAsLate(emp, today, shift);
+                            flagUnregisteredCheckOutAsLate(emp, today, shift, finalCompanyName);
                         }
                     }
                     return null;
@@ -87,37 +101,37 @@ public class ShiftReminderScheduler {
         }
     }
 
-    private void sendCheckInReminderIfNotCheckedIn(User emp, LocalDate today, ShiftType shift, LocalTime startTime) {
+    private void sendCheckInReminderIfNotCheckedIn(User emp, LocalDate today, ShiftType shift, LocalTime startTime, String companyName) {
         Optional<Attendance> attOpt = attendanceRepository.findByUserIdAndAttendanceDate(emp.getId(), today);
         boolean alreadyCheckedIn = attOpt.isPresent() && attOpt.get().getCheckInTime() != null;
 
         if (!alreadyCheckedIn) {
-            String title = "⏰ Recordatorio de Entrada — Sistema Checador";
+            String title = "⏰ Recordatorio de Entrada — " + companyName;
             String body = "Hola " + emp.getFullName() + ", tu turno " + translateShift(shift) +
                     " inicia en 15 minutos (" + startTime.format(TIME_FMT) + "). No olvides registrar tu ENTRADA a tiempo.";
 
             saveReminderNotification(emp, title, body, "⏰");
-            log.info("Check-in reminder sent to employee ID: {} ({})", emp.getId(), emp.getFullName());
+            log.info("Check-in reminder sent to employee ID: {} ({}) for company: {}", emp.getId(), emp.getFullName(), companyName);
         }
     }
 
-    private void sendCheckOutReminderIfNotCheckedOut(User emp, LocalDate today, ShiftType shift, LocalTime endTime) {
+    private void sendCheckOutReminderIfNotCheckedOut(User emp, LocalDate today, ShiftType shift, LocalTime endTime, String companyName) {
         Optional<Attendance> attOpt = attendanceRepository.findByUserIdAndAttendanceDate(emp.getId(), today);
         boolean checkedInAndNotCheckedOut = attOpt.isPresent()
                 && attOpt.get().getCheckInTime() != null
                 && attOpt.get().getCheckOutTime() == null;
 
         if (checkedInAndNotCheckedOut) {
-            String title = "🔔 Recordatorio de Salida — Sistema Checador";
+            String title = "🔔 Recordatorio de Salida — " + companyName;
             String body = "Hola " + emp.getFullName() + ", tu turno " + translateShift(shift) +
                     " finaliza en 15 minutos (" + endTime.format(TIME_FMT) + "). Recuerda registrar tu SALIDA al concluir.";
 
             saveReminderNotification(emp, title, body, "🔔");
-            log.info("Check-out reminder sent to employee ID: {} ({})", emp.getId(), emp.getFullName());
+            log.info("Check-out reminder sent to employee ID: {} ({}) for company: {}", emp.getId(), emp.getFullName(), companyName);
         }
     }
 
-    private void flagUnregisteredCheckOutAsLate(User emp, LocalDate today, ShiftType shift) {
+    private void flagUnregisteredCheckOutAsLate(User emp, LocalDate today, ShiftType shift, String companyName) {
         Optional<Attendance> attOpt = attendanceRepository.findByUserIdAndAttendanceDate(emp.getId(), today);
         if (attOpt.isPresent()) {
             Attendance att = attOpt.get();
@@ -127,12 +141,12 @@ public class ShiftReminderScheduler {
                 att.setNotes("Salida no registrada (Transcurrió la ventana de 6 horas de extensión para horas extra). Marcado automáticamente como Retardo.");
                 attendanceRepository.save(att);
 
-                String title = "⚠️ Salida No Registrada — Marcado con Retardo";
+                String title = "⚠️ Salida No Registrada — " + companyName;
                 String body = "Hola " + emp.getFullName() + ", transcurrió el tiempo límite para registrar SALIDA en tu turno " + translateShift(shift) +
                         ". Tu registro fue marcado con Retardo.";
 
                 saveReminderNotification(emp, title, body, "⚠️");
-                log.info("Unregistered check-out flagged as LATE for employee ID: {} ({})", emp.getId(), emp.getFullName());
+                log.info("Unregistered check-out flagged as LATE for employee ID: {} ({}) for company: {}", emp.getId(), emp.getFullName(), companyName);
             }
         }
     }
