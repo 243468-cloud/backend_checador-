@@ -88,8 +88,7 @@ public class AuthController {
                 return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
             }
             if (matchedTenants.size() > 1) {
-                return ResponseEntity.status(400).body(Map.of("error",
-                        "El usuario existe en múltiples empresas. Debe ingresar desde el portal de su empresa (/su-empresa/login)."));
+                return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
             }
             tenantId = matchedTenants.get(0);
             try {
@@ -123,7 +122,7 @@ public class AuthController {
         } catch (AuthenticationException e) {
             return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
         } catch (Exception e) {
-            return ResponseEntity.status(400).body(Map.of("error", "Error en inicio de sesión: " + e.getMessage()));
+            return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
         } finally {
             com.checador.security.TenantContext.clear();
         }
