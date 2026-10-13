@@ -331,6 +331,9 @@ public class ScheduleService {
      * y marca explícitamente como DESCANSO los días donde el empleado no fue asignado a ninguna casilla.
      */
     public List<EmployeeIndividualScheduleDTO> getIndividualSchedules(Long branchId, LocalDate weekStart) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        branchRepository.findByIdAndTenantId(branchId, tenantId)
+            .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
         List<ScheduleRoster> rosterCells = rosterRepository.findByBranchIdAndWeekStart(branchId, weekStart);
 
         // Agrupamos por nombre real del empleado (parseando JSON si es necesario)

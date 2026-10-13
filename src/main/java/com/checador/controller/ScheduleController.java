@@ -21,6 +21,7 @@ import java.util.Map;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final com.checador.repository.BranchRepository branchRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     // GET /api/schedules?branchId=X&weekStart=YYYY-MM-DD
@@ -124,7 +125,14 @@ public class ScheduleController {
     private Long resolveBranch(User user, Long requestedBranchId) {
         if (requestedBranchId != null) return requestedBranchId;
         if (user != null && user.getBranch() != null) return user.getBranch().getId();
-        return 1L; // Fallback predeterminado a sucursal 1 para Superusuarios
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        if (tenantId != null) {
+            var branches = branchRepository.findAll();
+            if (!branches.isEmpty()) {
+                return branches.get(0).getId();
+            }
+        }
+        throw new com.checador.exception.ResourceNotFoundException("Sucursal no encontrada o no especificada para el inquilino");
     }
 
     private Map<String, Object> toResponse(ScheduleRoster r) {

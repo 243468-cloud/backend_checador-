@@ -638,5 +638,52 @@ public class TenantIsolationIntegrationTest {
         // 7. Contexto de tenant queda limpio tras la ejecución
         org.junit.jupiter.api.Assertions.assertNull(com.checador.security.TenantContext.getTenantId());
     }
+
+    @Test
+    public void testScheduleEndpointsIsolation() throws Exception {
+        LocalDate date = LocalDate.now();
+
+        // 1. getRoster de sucursal ajena -> 4xx (NotFound)
+        mockMvc.perform(get("/api/schedules")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .param("branchId", String.valueOf(branchIdTenantB))
+                .param("weekStart", date.toString()))
+                .andExpect(status().isNotFound());
+
+        // 2. getAvailableWeeks de sucursal ajena -> 4xx (NotFound)
+        mockMvc.perform(get("/api/schedules/weeks")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .param("branchId", String.valueOf(branchIdTenantB)))
+                .andExpect(status().isNotFound());
+
+        // 3. saveRoster en sucursal ajena -> 4xx (BadRequest/NotFound)
+        String saveBody = "{\"branchId\":" + branchIdTenantB + ",\"weekStart\":\"" + date + "\",\"cells\":[]}";
+        mockMvc.perform(post("/api/schedules/save")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(saveBody))
+                .andExpect(status().isBadRequest());
+
+        // 4. deleteRoster en sucursal ajena -> 4xx (NotFound)
+        mockMvc.perform(delete("/api/schedules")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .param("branchId", String.valueOf(branchIdTenantB))
+                .param("weekStart", date.toString()))
+                .andExpect(status().isNotFound());
+
+        // 5. calculateScheduleSummary de sucursal ajena -> 4xx (NotFound)
+        mockMvc.perform(get("/api/schedules/summary")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .param("branchId", String.valueOf(branchIdTenantB))
+                .param("weekStart", date.toString()))
+                .andExpect(status().isNotFound());
+
+        // 6. getIndividualSchedules de sucursal ajena -> 4xx (NotFound)
+        mockMvc.perform(get("/api/schedules/individual")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .param("branchId", String.valueOf(branchIdTenantB))
+                .param("weekStart", date.toString()))
+                .andExpect(status().isNotFound());
+    }
 }
 
