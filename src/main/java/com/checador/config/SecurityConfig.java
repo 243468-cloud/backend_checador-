@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -21,6 +22,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -60,6 +62,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/audit/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/settings/all").hasRole("SUPERUSER")
 
+                // ── Configuración de la empresa: solo el ADMIN del tenant (SUPERUSER no tiene settings propios) ──
+                .requestMatchers(HttpMethod.PUT, "/api/settings/current").hasRole("ADMIN")
+
                 // ── Horarios: lectura para EMPLOYEE, ADMIN y SUPERUSER; escritura solo ADMIN/SUPERUSER ──
                 .requestMatchers(HttpMethod.GET,    "/api/schedules/**").hasAnyRole("EMPLOYEE", "ADMIN", "SUPERUSER")
                 .requestMatchers(HttpMethod.POST,   "/api/schedules/**").hasAnyRole("ADMIN", "SUPERUSER")
@@ -95,6 +100,7 @@ public class SecurityConfig {
 
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class)

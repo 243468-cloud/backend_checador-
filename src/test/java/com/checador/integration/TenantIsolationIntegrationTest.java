@@ -477,5 +477,97 @@ public class TenantIsolationIntegrationTest {
         org.junit.jupiter.api.Assertions.assertFalse(ts.getActiveModules().isEmpty(), "activeModules no debe estar vacío");
         org.junit.jupiter.api.Assertions.assertTrue(ts.getActiveModules().contains("schedules"));
     }
+
+    // --- PUT /api/settings/current: autenticación, rol y validación de logoUrl/iconUrl ---
+
+    private static String logoJson(String field, String url) {
+        return "{\"" + field + "\":\"" + url + "\"}";
+    }
+
+    private String employeeTokenTenantA() {
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            User employeeA = new User();
+            employeeA.setUsername("employeeA");
+            employeeA.setPassword(passwordEncoder.encode("password"));
+            employeeA.setFullName("Employee A");
+            employeeA.setRole(Role.EMPLOYEE);
+            employeeA.setTenantId(1L);
+            employeeA = userRepository.save(employeeA);
+            return jwtService.generateToken(employeeA);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+    }
+
+    @Test
+    public void updateSettingsWithoutTokenIsUnauthorized() throws Exception {
+        mockMvc.perform(put("/api/settings/current")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(logoJson("logoUrl", "https://cdn.example.com/logo.png")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void updateSettingsAsEmployeeIsForbidden() throws Exception {
+        mockMvc.perform(put("/api/settings/current")
+                .header("Authorization", "Bearer " + employeeTokenTenantA())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(logoJson("logoUrl", "https://cdn.example.com/logo.png")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void updateSettingsRejectsUnsafeImageUrls() throws Exception {
+        String[] unsafe = {
+                "https://cdn.example.com/logo.svg",
+                "https://cdn.example.com/logo.SVG?v=2",
+                "http://cdn.example.com/logo.png",
+                "data:image/png;base64,AAAA",
+                "javascript:alert(1)",
+                "https://localhost/logo.png",
+                "https://intranet.internal/logo.png",
+                "https://127.0.0.1/logo.png",
+                "https://10.0.0.5/logo.png",
+                "https://169.254.169.254/latest/meta-data",
+                "https://[::1]/logo.png",
+                "https://2130706433/logo.png",
+                "https://user:pass@cdn.example.com/logo.png",
+                "https://cdn.example.com:8443/logo.png"
+        };
+        for (String url : unsafe) {
+            mockMvc.perform(put("/api/settings/current")
+                    .header("Authorization", "Bearer " + tokenTenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(logoJson("logoUrl", url)))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(put("/api/settings/current")
+                    .header("Authorization", "Bearer " + tokenTenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(logoJson("iconUrl", url)))
+                    .andExpect(status().isBadRequest());
+        }
+        // Nada se persistió: sigue el valor original sembrado en setup()
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT logo_url FROM tenant_settings WHERE slug = 'via-gourmet'", String.class);
+        org.junit.jupiter.api.Assertions.assertEquals("logoA.png", stored);
+    }
+
+    @Test
+    public void updateSettingsAcceptsValidImageUrlAndOnlyTouchesOwnTenant() throws Exception {
+        mockMvc.perform(put("/api/settings/current")
+                .header("Authorization", "Bearer " + tokenTenantA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"logoUrl\":\"https://cdn.example.com/brand/logo.png\",\"iconUrl\":\"https://cdn.example.com/brand/icon.webp?v=3\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.logoUrl").value("https://cdn.example.com/brand/logo.png"))
+                .andExpect(jsonPath("$.iconUrl").value("https://cdn.example.com/brand/icon.webp?v=3"));
+
+        org.junit.jupiter.api.Assertions.assertEquals("https://cdn.example.com/brand/logo.png",
+                jdbcTemplate.queryForObject("SELECT logo_url FROM tenant_settings WHERE slug = 'via-gourmet'", String.class));
+        org.junit.jupiter.api.Assertions.assertNull(
+                jdbcTemplate.queryForObject("SELECT logo_url FROM tenant_settings WHERE slug = 'tenant-b'", String.class),
+                "El tenant B no debe verse afectado");
+    }
 }
 

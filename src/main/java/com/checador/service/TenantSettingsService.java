@@ -53,11 +53,16 @@ public class TenantSettingsService {
      * Actualiza la configuración del tenant actual.
      */
     public TenantSettings updateCurrentSettings(TenantSettings updatedData) {
+        String logoUrl = updatedData.getLogoUrl() != null
+                ? ImageUrlValidator.validate(updatedData.getLogoUrl(), "logoUrl") : null;
+        String iconUrl = updatedData.getIconUrl() != null
+                ? ImageUrlValidator.validate(updatedData.getIconUrl(), "iconUrl") : null;
+
         TenantSettings current = getCurrentTenantSettings();
         
         if (updatedData.getCompanyName() != null) current.setCompanyName(updatedData.getCompanyName());
-        if (updatedData.getLogoUrl() != null) current.setLogoUrl(updatedData.getLogoUrl());
-        if (updatedData.getIconUrl() != null) current.setIconUrl(updatedData.getIconUrl());
+        if (logoUrl != null) current.setLogoUrl(logoUrl);
+        if (iconUrl != null) current.setIconUrl(iconUrl);
         if (updatedData.getPrimaryColor() != null) current.setPrimaryColor(updatedData.getPrimaryColor());
         if (updatedData.getToleranceMinutes() != null) current.setToleranceMinutes(updatedData.getToleranceMinutes());
         
