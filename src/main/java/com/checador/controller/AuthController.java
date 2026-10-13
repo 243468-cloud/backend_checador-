@@ -138,9 +138,10 @@ public class AuthController {
         try {
             String username = jwtService.extractUsername(refreshToken);
             Long tenantId = jwtService.extractTenantId(refreshToken);
-            if (tenantId != null) {
-                com.checador.security.TenantContext.setTenantId(tenantId);
+            if (tenantId == null) {
+                return ResponseEntity.status(401).body(Map.of("error", "Refresh token inválido"));
             }
+            com.checador.security.TenantContext.setTenantId(tenantId);
             try {
                 User user = (User) userService.loadUserByUsername(username);
                 if (jwtService.isTokenValid(refreshToken, user)) {

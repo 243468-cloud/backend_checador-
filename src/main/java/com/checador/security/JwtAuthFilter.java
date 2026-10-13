@@ -48,24 +48,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         try {
-            final String username = jwtService.extractUsername(jwt);
             final Long tenantId = jwtService.extractTenantId(jwt);
+            final String username = jwtService.extractUsername(jwt);
 
-            if (tenantId != null) {
+            if (tenantId != null && username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 TenantContext.setTenantId(tenantId);
-            }
-
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                 if (jwtService.isTokenValid(jwt, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    TenantContext.clear();
                 }
             }
         } catch (Exception e) {
-            // Token inválido o expirado — continuar sin autenticar
+            // Token inválido o expirado — limpiar contexto y continuar sin autenticar
+            TenantContext.clear();
         }
 
         try {

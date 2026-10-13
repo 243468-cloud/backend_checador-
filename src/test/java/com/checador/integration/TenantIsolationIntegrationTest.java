@@ -729,5 +729,70 @@ public class TenantIsolationIntegrationTest {
                 .header("Authorization", "Bearer " + tokenB))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    public void testAdminInTwoTenantsTokenANeverAuthenticatesAsAdminBNorByRefresh() throws Exception {
+        // Crear usuario "admin" en Tenant 1 (Empresa A)
+        User adminCompanyA = new User();
+        adminCompanyA.setUsername("admin");
+        adminCompanyA.setPassword(passwordEncoder.encode("secretA"));
+        adminCompanyA.setFullName("Admin Empresa A");
+        adminCompanyA.setRole(Role.ADMIN);
+        adminCompanyA.setTenantId(1L);
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            adminCompanyA = userRepository.save(adminCompanyA);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // Crear usuario "admin" en Tenant 2 (Empresa B)
+        User adminCompanyB = new User();
+        adminCompanyB.setUsername("admin");
+        adminCompanyB.setPassword(passwordEncoder.encode("secretB"));
+        adminCompanyB.setFullName("Admin Empresa B");
+        adminCompanyB.setRole(Role.ADMIN);
+        adminCompanyB.setTenantId(2L);
+        com.checador.security.TenantContext.setTenantId(2L);
+        try {
+            adminCompanyB = userRepository.save(adminCompanyB);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        // Generar tokens para admin de Empresa A
+        String tokenA = jwtService.generateToken(adminCompanyA);
+        String refreshA = jwtService.generateRefreshToken(adminCompanyA);
+
+        // 1. Acceso a /api/auth/me con token de A debe resolver COMO ADMIN DE A (tenantId=1, fullName="Admin Empresa A")
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value(1))
+                .andExpect(jsonPath("$.fullName").value("Admin Empresa A"));
+
+        // 2. Acceso a recursos de Tenant B usando token de A NUNCA debe devolver recursos de B
+        mockMvc.perform(get("/api/employees/" + employeeIdTenantB)
+                .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isNotFound());
+
+        // 3. Flujo /api/auth/refresh con refresh token de Empresa A
+        var refreshResult = mockMvc.perform(post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + refreshA + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andReturn();
+
+        String newTokenFromRefresh = com.jayway.jsonpath.JsonPath.read(
+                refreshResult.getResponse().getContentAsString(), "$.token");
+
+        // El nuevo token obtenido vía refresh de A NUNCA autentica como el admin de B
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + newTokenFromRefresh))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value(1))
+                .andExpect(jsonPath("$.fullName").value("Admin Empresa A"));
+    }
 }
 

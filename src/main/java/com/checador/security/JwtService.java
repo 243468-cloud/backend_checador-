@@ -84,7 +84,16 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        if (!username.equals(userDetails.getUsername()) || isTokenExpired(token)) {
+            return false;
+        }
+        if (userDetails instanceof com.checador.entity.User user) {
+            Long tokenTenantId = extractTenantId(token);
+            if (tokenTenantId != null && user.getTenantId() != null) {
+                return tokenTenantId.equals(user.getTenantId());
+            }
+        }
+        return true;
     }
 
     private boolean isTokenExpired(String token) {
