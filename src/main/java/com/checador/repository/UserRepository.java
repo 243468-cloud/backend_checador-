@@ -30,6 +30,11 @@ public interface UserRepository extends BaseTenantRepository<User, Long> {
 
     Optional<User> findByIdAndTenantId(Long id, Long tenantId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("DELETE FROM User u WHERE u.id = :id AND u.tenantId = :tenantId")
+    void deleteByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
     List<User> findByBranchIdAndRole(Long branchId, Role role);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE (:branchId IS NULL OR u.branch.id = :branchId) AND u.role = com.checador.entity.Role.EMPLOYEE AND u.active = true")
