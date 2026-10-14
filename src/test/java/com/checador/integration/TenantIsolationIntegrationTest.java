@@ -243,6 +243,23 @@ public class TenantIsolationIntegrationTest {
         mockMvc.perform(delete("/api/employees/" + employeeIdTenantB)
                 .header("Authorization", "Bearer " + tokenTenantA))
                 .andExpect(status().is4xxClientError());
+
+        // Crear un empleado en Tenant A para probar el borrado exitoso y verificar la sentencia DELETE
+        com.checador.security.TenantContext.setTenantId(1L);
+        Branch branch1 = branchRepository.findAll().stream().filter(b -> b.getTenantId().equals(1L)).findFirst().orElse(null);
+        User employeeToDelete = new User();
+        employeeToDelete.setUsername("emp_to_delete");
+        employeeToDelete.setPassword(passwordEncoder.encode("password"));
+        employeeToDelete.setFullName("Emp Delete");
+        employeeToDelete.setRole(Role.EMPLOYEE);
+        employeeToDelete.setBranch(branch1);
+        employeeToDelete.setTenantId(1L);
+        employeeToDelete = userRepository.save(employeeToDelete);
+        com.checador.security.TenantContext.clear();
+
+        mockMvc.perform(delete("/api/employees/" + employeeToDelete.getId())
+                .header("Authorization", "Bearer " + tokenTenantA))
+                .andExpect(status().isOk());
     }
 
     // --- Attendance ---

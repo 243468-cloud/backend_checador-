@@ -107,11 +107,12 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void deleteUser(Long id) {
+        Long tenantId = TenantContext.getTenantId();
         User user = findByIdWithTenant(id);
         attendanceRepository.deleteByUserId(id);
         pushSubscriptionRepository.deleteByUserId(id);
         leaveRequestRepository.deleteByUserId(id);
-        userRepository.delete(user);
+        userRepository.deleteByIdAndTenantId(user.getId(), tenantId);
     }
 
     public User findByIdWithTenant(Long id) {
