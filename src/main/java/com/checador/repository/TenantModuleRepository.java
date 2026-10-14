@@ -9,5 +9,7 @@ import java.util.List;
 @Repository
 public interface TenantModuleRepository extends JpaRepository<TenantModule, TenantModule.TenantModuleId> {
     List<TenantModule> findByTenantId(Long tenantId);
+
+    @org.springframework.transaction.annotation.Transactional
     void deleteByTenantId(Long tenantId);
 }

@@ -82,6 +82,9 @@ public class TenantIsolationIntegrationTest {
     @Autowired
     private com.checador.repository.NotificationRepository notificationRepository;
 
+    @Autowired
+    private com.checador.config.DataSeeder dataSeeder;
+
     @org.springframework.boot.test.mock.mockito.MockBean
     private com.checador.service.MailService mailService;
 
@@ -473,7 +476,7 @@ public class TenantIsolationIntegrationTest {
                 
         // Clave válida -> 202
         mockMvc.perform(post("/api/reports/public/global/trigger-weekly")
-                .header("X-Cron-Key", "default-cron-key-change-me"))
+                .header("X-Cron-Key", "test-cron-key"))
                 .andExpect(status().isAccepted());
     }
 
@@ -925,5 +928,100 @@ public class TenantIsolationIntegrationTest {
         // Ejecutar WeeklyReportScheduler (itera tenants usando jdbcTemplate sin @TenantId)
         weeklyReportScheduler.generateAndSendWeeklyReports();
     }
+
+    @Test
+    public void testApplicationStartupDoesNotThrowTenantException() {
+        // Verifica que la inicialización del contexto Spring y el DataSeeder ejecutan sin excepciones de tenant
+        dataSeeder.run();
+        com.checador.security.TenantContext.setTenantId(0L);
+        try {
+            org.junit.jupiter.api.Assertions.assertTrue(userRepository.existsByRole(Role.SUPERUSER),
+                    "El DataSeeder debió inicializar el superadmin con tenant_id = 0 sin excepciones de tenant");
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+    }
+
+    @Test
+    public void testRefreshTokenCannotBeUsedAsAccessToken() throws Exception {
+        // Crear usuario admin en Tenant 1
+        User testUser = new User();
+        testUser.setUsername("refreshtest");
+        testUser.setPassword(passwordEncoder.encode("pass"));
+        testUser.setFullName("Refresh Tester");
+        testUser.setRole(Role.ADMIN);
+        testUser.setTenantId(1L);
+        com.checador.security.TenantContext.setTenantId(1L);
+        try {
+            testUser = userRepository.save(testUser);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+
+        String refreshToken = jwtService.generateRefreshToken(testUser);
+
+        // Usar refresh token como access token en /api/auth/me debe ser rechazado con 401
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + refreshToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void testTokenWithoutTenantIdIsRejected() throws Exception {
+        // Crear un token manual sin claim de tenantId
+        String tokenWithoutTenant = io.jsonwebtoken.Jwts.builder()
+                .subject("adminA")
+                .claim("tokenType", "ACCESS")
+                .issuedAt(new java.util.Date())
+                .expiration(new java.util.Date(System.currentTimeMillis() + 3600000))
+                .signWith((javax.crypto.SecretKey) org.springframework.test.util.ReflectionTestUtils.invokeMethod(jwtService, "getSignInKey"))
+                .compact();
+
+        // Llamar a /api/auth/me sin tenantId debe ser rechazado con 401
+        mockMvc.perform(get("/api/auth/me")
+                .header("Authorization", "Bearer " + tokenWithoutTenant))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    public void testSuperuserCanListCompaniesAndToggleModulesAndCurrentSettingsDoesNotBreakSession() throws Exception {
+        // Crear superuser (tenant_id = 0, role = SUPERUSER)
+        User superuser = new User();
+        superuser.setUsername("superadmin_test");
+        superuser.setPassword(passwordEncoder.encode("superpass"));
+        superuser.setFullName("Super Admin");
+        superuser.setRole(Role.SUPERUSER);
+        superuser.setTenantId(0L);
+        com.checador.security.TenantContext.setTenantId(0L);
+        try {
+            superuser = userRepository.save(superuser);
+        } finally {
+            com.checador.security.TenantContext.clear();
+        }
+        String superToken = jwtService.generateToken(superuser);
+
+        // 1. Superuser puede listar empresas en /api/settings/all
+        mockMvc.perform(get("/api/settings/all")
+                .header("Authorization", "Bearer " + superToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+
+        // 2. Superuser puede cambiar módulos de Tenant 1
+        mockMvc.perform(put("/api/settings/tenant/1/modules")
+                .header("Authorization", "Bearer " + superToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("[\"schedules\", \"reports\"]"))
+                .andExpect(status().isOk());
+
+        // 3. /api/settings/current no rompe la sesión del superuser (retorna 200 con tenantId = 0)
+        mockMvc.perform(get("/api/settings/current")
+                .header("Authorization", "Bearer " + superToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value(0))
+                .andExpect(jsonPath("$.companyName").value("Superadministrador"));
+    }
 }
+
+
+
 

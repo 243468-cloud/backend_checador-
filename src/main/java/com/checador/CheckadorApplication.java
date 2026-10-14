@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 @org.springframework.transaction.annotation.EnableTransactionManagement(order = 0)
 public class CheckadorApplication {
 

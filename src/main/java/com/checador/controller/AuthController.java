@@ -143,7 +143,7 @@ public class AuthController {
             com.checador.security.TenantContext.setTenantId(tenantId);
             try {
                 User user = (User) userService.loadUserByUsername(username);
-                if (jwtService.isTokenValid(refreshToken, user)) {
+                if (jwtService.isRefreshTokenValid(refreshToken, user)) {
                     String newToken = jwtService.generateToken(user);
                     return ResponseEntity.ok(Map.of("token", newToken));
                 } else {
@@ -163,7 +163,6 @@ public class AuthController {
      * Spring Security ya validó el JWT antes de llegar aquí (vía JwtAuthFilter).
      */
     @GetMapping("/me")
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<?> getMe(@AuthenticationPrincipal User user) {
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("error", "No autenticado"));

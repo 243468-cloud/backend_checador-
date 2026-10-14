@@ -16,6 +16,7 @@ spring:
   flyway:
     enabled: false
 app:
+  cron-api-key: test-cron-key
   jwt:
     secret: MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=
     expiration: 3600000

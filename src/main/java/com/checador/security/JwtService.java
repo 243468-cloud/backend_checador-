@@ -48,8 +48,13 @@ public class JwtService {
         return null;
     }
 
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("tokenType", String.class));
+    }
+
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("tokenType", "ACCESS");
         if (userDetails instanceof com.checador.entity.User user) {
             claims.put("role", user.getRole().name());
             claims.put("fullName", user.getFullName());
@@ -66,6 +71,7 @@ public class JwtService {
 
     public String generateRefreshToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("tokenType", "REFRESH");
         if (userDetails instanceof com.checador.entity.User user && user.getTenantId() != null) {
             claims.put("tenantId", user.getTenantId());
         }
@@ -87,9 +93,37 @@ public class JwtService {
         if (!username.equals(userDetails.getUsername()) || isTokenExpired(token)) {
             return false;
         }
+        String tokenType = extractTokenType(token);
+        if ("REFRESH".equalsIgnoreCase(tokenType)) {
+            return false;
+        }
+        Long tokenTenantId = extractTenantId(token);
+        if (tokenTenantId == null) {
+            return false;
+        }
         if (userDetails instanceof com.checador.entity.User user) {
-            Long tokenTenantId = extractTenantId(token);
-            if (tokenTenantId != null && user.getTenantId() != null) {
+            if (user.getTenantId() != null) {
+                return tokenTenantId.equals(user.getTenantId());
+            }
+        }
+        return true;
+    }
+
+    public boolean isRefreshTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsername(token);
+        if (!username.equals(userDetails.getUsername()) || isTokenExpired(token)) {
+            return false;
+        }
+        String tokenType = extractTokenType(token);
+        if ("ACCESS".equalsIgnoreCase(tokenType)) {
+            return false;
+        }
+        Long tokenTenantId = extractTenantId(token);
+        if (tokenTenantId == null) {
+            return false;
+        }
+        if (userDetails instanceof com.checador.entity.User user) {
+            if (user.getTenantId() != null) {
                 return tokenTenantId.equals(user.getTenantId());
             }
         }

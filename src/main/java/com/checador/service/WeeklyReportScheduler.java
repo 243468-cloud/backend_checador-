@@ -28,7 +28,12 @@ public class WeeklyReportScheduler {
 
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    // Se ejecuta externamente mediante el endpoint /api/reports/global/trigger-weekly
+    // Se ejecuta externamente mediante el endpoint /api/reports/public/global/trigger-weekly
+    @org.springframework.scheduling.annotation.Async
+    public void generateAndSendWeeklyReportsAsync() {
+        generateAndSendWeeklyReports();
+    }
+
     public void generateAndSendWeeklyReports() {
         logger.info("Iniciando generación automática de reportes semanales...");
         

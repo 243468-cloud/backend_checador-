@@ -128,7 +128,7 @@ public class ReportController {
         return ResponseEntity.ok(Map.of("message", "Global report", "year", year, "month", month));
     }
 
-    @org.springframework.beans.factory.annotation.Value("${CRON_API_KEY:default-cron-key-change-me}")
+    @org.springframework.beans.factory.annotation.Value("${app.cron-api-key:${CRON_API_KEY:}}")
     private String cronApiKey;
 
     /**
@@ -144,15 +144,8 @@ public class ReportController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body(Map.of("error", "API Key inválida."));
         }
         
-        // Ejecución en segundo plano para responder rápido al cron
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
-            try {
-                weeklyReportScheduler.generateAndSendWeeklyReports();
-            } catch (Exception e) {
-                // Log and swallow so the thread doesn't crash silently
-                e.printStackTrace();
-            }
-        });
+        // Ejecución en segundo plano mediante @Async
+        weeklyReportScheduler.generateAndSendWeeklyReportsAsync();
         
         return ResponseEntity.accepted().body(Map.of("message", "Generación de reportes iniciada en segundo plano."));
     }

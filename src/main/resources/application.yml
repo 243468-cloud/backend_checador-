@@ -41,6 +41,7 @@ spring:
             enable: true
 
 app:
+  cron-api-key: ${CRON_API_KEY:}
   jwt:
     # Sin valor por defecto — REQUIERE variable de entorno JWT_SECRET (mín. 256 bits en Base64)
     secret: ${JWT_SECRET}

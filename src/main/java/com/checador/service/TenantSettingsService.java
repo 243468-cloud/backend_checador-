@@ -3,6 +3,8 @@ package com.checador.service;
 import com.checador.entity.TenantSettings;
 import com.checador.repository.TenantSettingsRepository;
 import com.checador.security.TenantContext;
+import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -42,6 +44,22 @@ public class TenantSettingsService {
      */
     public TenantSettings getCurrentTenantSettings() {
         Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId == 0L) {
+            TenantSettings superSettings = repository.findByTenantId(0L).orElseGet(() -> {
+                TenantSettings ts = new TenantSettings();
+                ts.setTenantId(0L);
+                ts.setCompanyName("Superadministrador");
+                ts.setPrimaryColor("#4F46E5");
+                ts.setSlug("superadmin");
+                ts.setActiveModules(java.util.Collections.emptySet());
+                return ts;
+            });
+            if (superSettings.getActiveModules() == null) {
+                superSettings.setActiveModules(java.util.Collections.emptySet());
+            }
+            return superSettings;
+        }
+
         TenantSettings settings = repository.findByTenantId(tenantId)
                 .orElseThrow(() -> new RuntimeException("Configuración no encontrada para el tenant actual"));
         java.util.List<com.checador.entity.TenantModule> mods = moduleRepository.findByTenantId(tenantId);
@@ -94,29 +112,36 @@ public class TenantSettingsService {
      * PRIVADO (Solo SUPERUSER): Actualiza los módulos activos de una empresa.
      */
     public TenantSettings updateModulesForTenant(Long targetTenantId, java.util.Set<String> modules) {
-        Long currentTenant = TenantContext.getTenantId();
-        try {
-            // Para editar el tenant destino, nos "cambiamos" temporalmente a ese tenant
-            TenantContext.setTenantId(targetTenantId);
-            TenantSettings target = repository.findByTenantId(targetTenantId)
-                    .orElseThrow(() -> new RuntimeException("Empresa no encontrada"));
-            
-            // Delete old and insert new
-            moduleRepository.deleteByTenantId(targetTenantId);
-            if (modules != null && !modules.isEmpty()) {
-                java.util.List<com.checador.entity.TenantModule> newMods = modules.stream()
-                    .map(m -> new com.checador.entity.TenantModule(targetTenantId, m))
-                    .toList();
-                moduleRepository.saveAll(newMods);
-            }
-            target.setActiveModules(modules);
-            return target;
-        } finally {
-            if (currentTenant != null) {
-                TenantContext.setTenantId(currentTenant);
-            } else {
-                TenantContext.clear();
+        jdbcTemplate.update("DELETE FROM tenant_modules WHERE tenant_id = ?", targetTenantId);
+        if (modules != null && !modules.isEmpty()) {
+            for (String moduleName : modules) {
+                jdbcTemplate.update(
+                        "INSERT INTO tenant_modules (tenant_id, module_name) VALUES (?, ?)",
+                        targetTenantId, moduleName);
             }
         }
+
+        List<TenantSettings> list = jdbcTemplate.query(
+                "SELECT * FROM tenant_settings WHERE tenant_id = ? ORDER BY id DESC LIMIT 1",
+                (rs, rowNum) -> {
+                    TenantSettings ts = new TenantSettings();
+                    ts.setId(rs.getLong("id"));
+                    ts.setTenantId(rs.getLong("tenant_id"));
+                    ts.setCompanyName(rs.getString("company_name"));
+                    ts.setSlug(rs.getString("slug"));
+                    ts.setLogoUrl(rs.getString("logo_url"));
+                    ts.setIconUrl(rs.getString("icon_url"));
+                    ts.setPrimaryColor(rs.getString("primary_color"));
+                    ts.setToleranceMinutes(rs.getInt("tolerance_minutes"));
+                    return ts;
+                },
+                targetTenantId
+        );
+        if (list.isEmpty()) {
+            throw new RuntimeException("Empresa no encontrada");
+        }
+        TenantSettings target = list.get(0);
+        target.setActiveModules(modules != null ? modules : java.util.Collections.emptySet());
+        return target;
     }
 }
