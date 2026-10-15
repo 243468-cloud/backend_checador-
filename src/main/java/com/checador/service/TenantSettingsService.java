@@ -5,16 +5,23 @@ import com.checador.repository.TenantSettingsRepository;
 import com.checador.security.TenantContext;
 import java.util.List;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class TenantSettingsService {
 
     private final TenantSettingsRepository repository;
     private final com.checador.repository.TenantModuleRepository moduleRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public TenantSettingsService(
+            TenantSettingsRepository repository,
+            com.checador.repository.TenantModuleRepository moduleRepository,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.repository = repository;
+        this.moduleRepository = moduleRepository;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     /**
      * Endpoint público para que el frontend obtenga el diseño antes de iniciar sesión.

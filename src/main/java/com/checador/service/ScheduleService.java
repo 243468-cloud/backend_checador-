@@ -9,7 +9,6 @@ import com.checador.repository.UserRepository;
 import com.checador.entity.User;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,13 +17,21 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class ScheduleService {
 
     private final ScheduleRosterRepository rosterRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    public ScheduleService(
+            ScheduleRosterRepository rosterRepository,
+            BranchRepository branchRepository,
+            UserRepository userRepository) {
+        this.rosterRepository = rosterRepository;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
+    }
 
     /**
      * Extrae el nombre real del empleado desde el campo employeeName,

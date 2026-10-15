@@ -5,9 +5,9 @@ import com.checador.entity.Role;
 import com.checador.entity.User;
 import com.checador.repository.BranchRepository;
 import com.checador.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +15,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class WeeklyReportScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(WeeklyReportScheduler.class);
@@ -25,8 +24,22 @@ public class WeeklyReportScheduler {
     private final AttendanceService attendanceService;
     private final ReportService reportService;
     private final MailService mailService;
+    private final JdbcTemplate jdbcTemplate;
 
-    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    public WeeklyReportScheduler(
+            BranchRepository branchRepository,
+            UserRepository userRepository,
+            AttendanceService attendanceService,
+            ReportService reportService,
+            MailService mailService,
+            JdbcTemplate jdbcTemplate) {
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
+        this.attendanceService = attendanceService;
+        this.reportService = reportService;
+        this.mailService = mailService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     // Se ejecuta externamente mediante el endpoint /api/reports/public/global/trigger-weekly
     @org.springframework.scheduling.annotation.Async

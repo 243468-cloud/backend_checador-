@@ -5,9 +5,6 @@ import com.checador.entity.User;
 import com.checador.repository.PushSubscriptionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import lombok.Builder;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
@@ -31,11 +28,15 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WebPushService {
 
     private final PushSubscriptionRepository pushRepo;
     private final ObjectMapper objectMapper;
+
+    public WebPushService(PushSubscriptionRepository pushRepo, ObjectMapper objectMapper) {
+        this.pushRepo = pushRepo;
+        this.objectMapper = objectMapper;
+    }
 
     @Value("${app.vapid.public-key:}")
     private String configuredPublicKey;
@@ -80,15 +81,60 @@ public class WebPushService {
         }
     }
 
-    @Data
-    @Builder
-    public static class PushMessagePayload {
-        private String title;
-        private String body;
-        private String icon;
-        private String badge;
-        private String url;
-        private Map<String, Object> data;
+    public record PushMessagePayload(
+            String title,
+            String body,
+            String icon,
+            String badge,
+            String url,
+            Map<String, Object> data
+    ) {
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private String title;
+            private String body;
+            private String icon;
+            private String badge;
+            private String url;
+            private Map<String, Object> data;
+
+            public Builder title(String title) {
+                this.title = title;
+                return this;
+            }
+
+            public Builder body(String body) {
+                this.body = body;
+                return this;
+            }
+
+            public Builder icon(String icon) {
+                this.icon = icon;
+                return this;
+            }
+
+            public Builder badge(String badge) {
+                this.badge = badge;
+                return this;
+            }
+
+            public Builder url(String url) {
+                this.url = url;
+                return this;
+            }
+
+            public Builder data(Map<String, Object> data) {
+                this.data = data;
+                return this;
+            }
+
+            public PushMessagePayload build() {
+                return new PushMessagePayload(title, body, icon, badge, url, data);
+            }
+        }
     }
 
     public String getPublicKey() {

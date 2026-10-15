@@ -8,7 +8,6 @@ import com.checador.repository.AttendanceRepository;
 import com.checador.repository.UserRepository;
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +17,15 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class RankingService {
 
     private final AttendanceRepository attendanceRepository;
     private final UserRepository userRepository;
+
+    public RankingService(AttendanceRepository attendanceRepository, UserRepository userRepository) {
+        this.attendanceRepository = attendanceRepository;
+        this.userRepository = userRepository;
+    }
 
     // Default reward configuration parameters
     private String fortnightReward = "Bebida a Elección";

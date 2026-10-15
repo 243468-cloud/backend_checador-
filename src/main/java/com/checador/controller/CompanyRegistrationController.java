@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +14,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/public")
-@RequiredArgsConstructor
 public class CompanyRegistrationController {
 
     private final CompanyRegistrationService registrationService;
+
+    public CompanyRegistrationController(CompanyRegistrationService registrationService) {
+        this.registrationService = registrationService;
+    }
 
     @PostMapping("/register-company")
     public ResponseEntity<?> registerCompany(@Valid @RequestBody CompanyRegistrationRequest req) {

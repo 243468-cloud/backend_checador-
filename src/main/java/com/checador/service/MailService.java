@@ -2,17 +2,19 @@ package com.checador.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class MailService {
 
     private final JavaMailSender mailSender;
+
+    public MailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
 
     public void sendEmailWithAttachment(String to, String subject, String text, byte[] attachment, String attachmentName) {
         try {

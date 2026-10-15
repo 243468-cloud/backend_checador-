@@ -8,13 +8,11 @@ import com.checador.repository.BranchRepository;
 import com.checador.repository.TenantSettingsRepository;
 import com.checador.repository.UserRepository;
 import com.checador.security.TenantContext;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class CompanyRegistrationService {
 
     private final TenantSettingsRepository tenantSettingsRepository;
@@ -24,6 +22,23 @@ public class CompanyRegistrationService {
     private final com.checador.repository.TenantModuleRepository tenantModuleRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+
+    public CompanyRegistrationService(
+            TenantSettingsRepository tenantSettingsRepository,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            com.checador.repository.TenantModuleRepository tenantModuleRepository,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            org.springframework.transaction.support.TransactionTemplate transactionTemplate) {
+        this.tenantSettingsRepository = tenantSettingsRepository;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.tenantModuleRepository = tenantModuleRepository;
+        this.jdbcTemplate = jdbcTemplate;
+        this.transactionTemplate = transactionTemplate;
+    }
 
     public TenantSettings registerCompany(
             String companyName,

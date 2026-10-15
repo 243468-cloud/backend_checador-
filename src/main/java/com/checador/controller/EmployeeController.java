@@ -8,7 +8,6 @@ import com.checador.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,11 +20,15 @@ import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/employees")
-@RequiredArgsConstructor
 public class EmployeeController {
 
     private final UserService userService;
     private final BranchService branchService;
+
+    public EmployeeController(UserService userService, BranchService branchService) {
+        this.userService = userService;
+        this.branchService = branchService;
+    }
 
     @GetMapping
     @Transactional(readOnly = true)

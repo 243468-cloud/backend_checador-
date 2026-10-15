@@ -3,7 +3,6 @@ package com.checador.service;
 import com.checador.entity.ShiftConfig;
 import com.checador.entity.ShiftType;
 import com.checador.repository.ShiftConfigRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,10 +10,13 @@ import java.time.LocalTime;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class ShiftConfigService {
 
     private final ShiftConfigRepository shiftConfigRepository;
+
+    public ShiftConfigService(ShiftConfigRepository shiftConfigRepository) {
+        this.shiftConfigRepository = shiftConfigRepository;
+    }
 
     @Transactional
     public List<ShiftConfig> getAllConfigs() {

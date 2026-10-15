@@ -7,7 +7,6 @@ import com.checador.entity.ShiftType;
 import com.checador.entity.User;
 import com.checador.repository.AttendanceRepository;
 import com.checador.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Transactional;
 import com.checador.security.TenantContext;
@@ -21,7 +20,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 public class AttendanceService {
 
     private final AttendanceRepository attendanceRepository;
@@ -29,9 +27,22 @@ public class AttendanceService {
     private final com.checador.repository.ScheduleRosterRepository rosterRepository;
     private final GeoService geoService;
     private final ShiftConfigService shiftConfigService;
-
-    @Lazy
     private final NotificationService notificationService;
+
+    public AttendanceService(
+            AttendanceRepository attendanceRepository,
+            UserRepository userRepository,
+            com.checador.repository.ScheduleRosterRepository rosterRepository,
+            GeoService geoService,
+            ShiftConfigService shiftConfigService,
+            @Lazy NotificationService notificationService) {
+        this.attendanceRepository = attendanceRepository;
+        this.userRepository = userRepository;
+        this.rosterRepository = rosterRepository;
+        this.geoService = geoService;
+        this.shiftConfigService = shiftConfigService;
+        this.notificationService = notificationService;
+    }
 
     private static final java.time.ZoneId MEXICO_ZONE = java.time.ZoneId.of("America/Mexico_City");
 

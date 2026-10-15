@@ -3,8 +3,10 @@ package com.checador.service;
 import com.checador.entity.Branch;
 import com.checador.entity.Role;
 import com.checador.entity.User;
+import com.checador.repository.AttendanceRepository;
+import com.checador.repository.LeaveRequestRepository;
+import com.checador.repository.PushSubscriptionRepository;
 import com.checador.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,12 +19,26 @@ import com.checador.exception.ResourceNotFoundException;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AttendanceRepository attendanceRepository;
+    private final PushSubscriptionRepository pushSubscriptionRepository;
+    private final LeaveRequestRepository leaveRequestRepository;
+
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       AttendanceRepository attendanceRepository,
+                       PushSubscriptionRepository pushSubscriptionRepository,
+                       LeaveRequestRepository leaveRequestRepository) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.attendanceRepository = attendanceRepository;
+        this.pushSubscriptionRepository = pushSubscriptionRepository;
+        this.leaveRequestRepository = leaveRequestRepository;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -100,10 +116,6 @@ public class UserService implements UserDetailsService {
         user.setActive(!user.getActive());
         userRepository.save(user);
     }
-
-    private final com.checador.repository.AttendanceRepository attendanceRepository;
-    private final com.checador.repository.PushSubscriptionRepository pushSubscriptionRepository;
-    private final com.checador.repository.LeaveRequestRepository leaveRequestRepository;
 
     @Transactional
     public void deleteUser(Long id) {

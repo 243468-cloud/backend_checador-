@@ -7,10 +7,20 @@ import lombok.*;
 @Table(name = "shift_configs")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class ShiftConfig extends BaseEntity {
+
+    public ShiftConfig() {
+    }
+
+    public ShiftConfig(Long id, String shiftName, String label, String startTime, String endTime, String daysDescription) {
+        this.id = id;
+        this.shiftName = shiftName;
+        this.label = label;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.daysDescription = daysDescription;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

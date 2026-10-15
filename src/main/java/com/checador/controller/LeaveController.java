@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -21,10 +20,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/leaves")
-@RequiredArgsConstructor
 public class LeaveController {
 
     private final LeaveRequestService leaveService;
+
+    public LeaveController(LeaveRequestService leaveService) {
+        this.leaveService = leaveService;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // EMPLEADO — Ver mis solicitudes

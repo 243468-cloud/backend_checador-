@@ -7,7 +7,6 @@ import com.checador.entity.User;
 import com.checador.repository.BranchRepository;
 import com.checador.repository.TenantSettingsRepository;
 import com.checador.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,7 +16,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class DataSeeder implements CommandLineRunner {
 
@@ -26,6 +24,19 @@ public class DataSeeder implements CommandLineRunner {
     private final TenantSettingsRepository tenantSettingsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
+
+    public DataSeeder(
+            UserRepository userRepository,
+            BranchRepository branchRepository,
+            TenantSettingsRepository tenantSettingsRepository,
+            PasswordEncoder passwordEncoder,
+            JdbcTemplate jdbcTemplate) {
+        this.userRepository = userRepository;
+        this.branchRepository = branchRepository;
+        this.tenantSettingsRepository = tenantSettingsRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @org.springframework.beans.factory.annotation.Value("${app.seed.superadmin.username:superadmin}")
     private String adminUsername;

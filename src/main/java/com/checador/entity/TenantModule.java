@@ -14,10 +14,16 @@ import java.io.Serializable;
 @Entity
 @Table(name = "tenant_modules")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @IdClass(TenantModule.TenantModuleId.class)
 public class TenantModule {
+
+    public TenantModule() {
+    }
+
+    public TenantModule(Long tenantId, String moduleName) {
+        this.tenantId = tenantId;
+        this.moduleName = moduleName;
+    }
 
     @Id
     @Column(name = "tenant_id")
@@ -28,9 +34,15 @@ public class TenantModule {
     private String moduleName;
 
     @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class TenantModuleId implements Serializable {
+        public TenantModuleId() {
+        }
+
+        public TenantModuleId(Long tenantId, String moduleName) {
+            this.tenantId = tenantId;
+            this.moduleName = moduleName;
+        }
+
         private Long tenantId;
         private String moduleName;
     }

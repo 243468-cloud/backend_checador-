@@ -2,7 +2,6 @@ package com.checador.service;
 
 import com.checador.entity.Branch;
 import com.checador.repository.BranchRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import com.checador.security.TenantContext;
 import org.springframework.stereotype.Service;
@@ -11,10 +10,13 @@ import com.checador.exception.ResourceNotFoundException;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class BranchService {
 
     private final BranchRepository branchRepository;
+
+    public BranchService(BranchRepository branchRepository) {
+        this.branchRepository = branchRepository;
+    }
 
     public List<Branch> getAll() {
         return branchRepository.findByActive(true);

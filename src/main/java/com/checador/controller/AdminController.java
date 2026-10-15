@@ -8,7 +8,6 @@ import com.checador.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +17,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admins")
-@RequiredArgsConstructor
 public class AdminController {
 
     private final UserService userService;
     private final BranchService branchService;
+
+    public AdminController(UserService userService, BranchService branchService) {
+        this.userService = userService;
+        this.branchService = branchService;
+    }
 
     @GetMapping
     @Transactional(readOnly = true)

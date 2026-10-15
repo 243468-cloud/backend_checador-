@@ -1,7 +1,5 @@
 package com.checador.service;
 
-import lombok.Builder;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,22 +15,98 @@ public class RealtimeEventService {
 
     private final Map<String, ClientEmitter> emitters = new ConcurrentHashMap<>();
 
-    @Data
-    @Builder
-    public static class ClientEmitter {
-        private String id;
-        private Long userId;
-        private String role;
-        private Long branchId;
-        private SseEmitter emitter;
+    public record ClientEmitter(
+            String id,
+            Long userId,
+            String role,
+            Long branchId,
+            SseEmitter emitter
+    ) {
+        public String getId() { return id; }
+        public Long getUserId() { return userId; }
+        public String getRole() { return role; }
+        public Long getBranchId() { return branchId; }
+        public SseEmitter getEmitter() { return emitter; }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private String id;
+            private Long userId;
+            private String role;
+            private Long branchId;
+            private SseEmitter emitter;
+
+            public Builder id(String id) {
+                this.id = id;
+                return this;
+            }
+
+            public Builder userId(Long userId) {
+                this.userId = userId;
+                return this;
+            }
+
+            public Builder role(String role) {
+                this.role = role;
+                return this;
+            }
+
+            public Builder branchId(Long branchId) {
+                this.branchId = branchId;
+                return this;
+            }
+
+            public Builder emitter(SseEmitter emitter) {
+                this.emitter = emitter;
+                return this;
+            }
+
+            public ClientEmitter build() {
+                return new ClientEmitter(id, userId, role, branchId, emitter);
+            }
+        }
     }
 
-    @Data
-    @Builder
-    public static class RealtimePayload {
-        private String type;
-        private Object data;
-        private long timestamp;
+    public record RealtimePayload(
+            String type,
+            Object data,
+            long timestamp
+    ) {
+        public String getType() { return type; }
+        public Object getData() { return data; }
+        public long getTimestamp() { return timestamp; }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        public static class Builder {
+            private String type;
+            private Object data;
+            private long timestamp;
+
+            public Builder type(String type) {
+                this.type = type;
+                return this;
+            }
+
+            public Builder data(Object data) {
+                this.data = data;
+                return this;
+            }
+
+            public Builder timestamp(long timestamp) {
+                this.timestamp = timestamp;
+                return this;
+            }
+
+            public RealtimePayload build() {
+                return new RealtimePayload(type, data, timestamp);
+            }
+        }
     }
 
     public SseEmitter subscribe(Long userId, String role, Long branchId) {

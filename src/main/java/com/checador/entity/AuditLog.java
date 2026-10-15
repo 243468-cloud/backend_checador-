@@ -14,10 +14,22 @@ import lombok.*;
 )
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class AuditLog extends BaseEntity {
+
+    public AuditLog() {
+    }
+
+    public AuditLog(Long id, User performedBy, String action, String entityType, Long entityId, String details, String ipAddress, Branch branch) {
+        this.id = id;
+        this.performedBy = performedBy;
+        this.action = action;
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.details = details;
+        this.ipAddress = ipAddress;
+        this.branch = branch;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

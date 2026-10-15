@@ -3,7 +3,6 @@ package com.checador.controller;
 import com.checador.entity.User;
 import com.checador.service.WebPushService;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,10 +12,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/push")
-@RequiredArgsConstructor
 public class PushController {
 
     private final WebPushService webPushService;
+
+    public PushController(WebPushService webPushService) {
+        this.webPushService = webPushService;
+    }
 
     @Data
     public static class PushSubRequest {

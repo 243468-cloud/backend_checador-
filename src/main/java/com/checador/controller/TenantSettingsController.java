@@ -2,16 +2,18 @@ package com.checador.controller;
 
 import com.checador.entity.TenantSettings;
 import com.checador.service.TenantSettingsService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/settings")
-@RequiredArgsConstructor
 public class TenantSettingsController {
 
     private final TenantSettingsService service;
+
+    public TenantSettingsController(TenantSettingsService service) {
+        this.service = service;
+    }
 
     /**
      * PÚBLICO: Obtiene colores y logo sin necesidad de Token JWT.

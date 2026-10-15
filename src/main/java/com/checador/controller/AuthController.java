@@ -6,7 +6,6 @@ import com.checador.security.JwtService;
 import com.checador.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,7 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -26,6 +24,19 @@ public class AuthController {
     private final UserService userService;
     private final com.checador.service.BranchService branchService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public AuthController(
+            AuthenticationManager authenticationManager,
+            JwtService jwtService,
+            UserService userService,
+            com.checador.service.BranchService branchService,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
+        this.userService = userService;
+        this.branchService = branchService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> registerEmployee(@Valid @RequestBody RegisterRequest request) {

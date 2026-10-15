@@ -7,10 +7,21 @@ import lombok.*;
 @Table(name = "push_subscriptions")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class PushSubscriptionEntity extends BaseEntity {
+
+    public PushSubscriptionEntity() {
+    }
+
+    public PushSubscriptionEntity(Long id, User user, String endpoint, String p256dhKey, String authKey, String role, Long branchId) {
+        this.id = id;
+        this.user = user;
+        this.endpoint = endpoint;
+        this.p256dhKey = p256dhKey;
+        this.authKey = authKey;
+        this.role = role;
+        this.branchId = branchId;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

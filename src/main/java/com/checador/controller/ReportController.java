@@ -4,7 +4,6 @@ import com.checador.entity.Attendance;
 import com.checador.entity.User;
 import com.checador.service.AttendanceService;
 import com.checador.service.ReportService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,12 +18,20 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reports")
-@RequiredArgsConstructor
 public class ReportController {
 
     private final AttendanceService attendanceService;
     private final ReportService reportService;
     private final com.checador.service.WeeklyReportScheduler weeklyReportScheduler;
+
+    public ReportController(
+            AttendanceService attendanceService,
+            ReportService reportService,
+            com.checador.service.WeeklyReportScheduler weeklyReportScheduler) {
+        this.attendanceService = attendanceService;
+        this.reportService = reportService;
+        this.weeklyReportScheduler = weeklyReportScheduler;
+    }
 
     private Long getBranchIdSafely(User u) {
         if (u == null) return null;

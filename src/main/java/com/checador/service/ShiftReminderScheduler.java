@@ -4,7 +4,6 @@ import com.checador.entity.*;
 import com.checador.repository.AttendanceRepository;
 import com.checador.repository.NotificationRepository;
 import com.checador.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import java.util.Optional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ShiftReminderScheduler {
 
     private final UserRepository userRepository;
@@ -27,6 +25,21 @@ public class ShiftReminderScheduler {
     private final ShiftConfigService shiftConfigService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+
+    public ShiftReminderScheduler(
+            UserRepository userRepository,
+            AttendanceRepository attendanceRepository,
+            NotificationRepository notificationRepository,
+            ShiftConfigService shiftConfigService,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            org.springframework.transaction.support.TransactionTemplate transactionTemplate) {
+        this.userRepository = userRepository;
+        this.attendanceRepository = attendanceRepository;
+        this.notificationRepository = notificationRepository;
+        this.shiftConfigService = shiftConfigService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.transactionTemplate = transactionTemplate;
+    }
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 

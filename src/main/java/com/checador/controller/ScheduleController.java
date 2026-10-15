@@ -3,7 +3,6 @@ package com.checador.controller;
 import com.checador.entity.ScheduleRoster;
 import com.checador.entity.User;
 import com.checador.service.ScheduleService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,12 +15,18 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/schedules")
-@RequiredArgsConstructor
 @com.checador.security.RequiresModule("schedules")
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
     private final com.checador.repository.BranchRepository branchRepository;
+
+    public ScheduleController(
+            ScheduleService scheduleService,
+            com.checador.repository.BranchRepository branchRepository) {
+        this.scheduleService = scheduleService;
+        this.branchRepository = branchRepository;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // GET /api/schedules?branchId=X&weekStart=YYYY-MM-DD

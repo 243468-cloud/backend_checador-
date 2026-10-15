@@ -2,7 +2,6 @@ package com.checador.controller;
 
 import com.checador.entity.User;
 import com.checador.service.RealtimeEventService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,10 +12,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/events")
-@RequiredArgsConstructor
 public class RealtimeEventController {
 
     private final RealtimeEventService realtimeEventService;
+
+    public RealtimeEventController(RealtimeEventService realtimeEventService) {
+        this.realtimeEventService = realtimeEventService;
+    }
 
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("isAuthenticated()")

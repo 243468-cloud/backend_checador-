@@ -2,7 +2,6 @@ package com.checador.controller;
 
 import com.checador.entity.User;
 import com.checador.service.AuditService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
@@ -10,10 +9,13 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/audit")
-@RequiredArgsConstructor
 public class AuditController {
 
     private final AuditService auditService;
+
+    public AuditController(AuditService auditService) {
+        this.auditService = auditService;
+    }
 
     @GetMapping
     public ResponseEntity<?> getGlobalLogs(

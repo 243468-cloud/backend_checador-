@@ -19,10 +19,22 @@ import java.time.LocalDateTime;
 )
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
 public class Notification extends BaseEntity {
+
+    public Notification() {
+    }
+
+    public Notification(Long id, String recipientRole, Long branchId, NotifType type, String title, String body, String icon, java.time.LocalDateTime readAt) {
+        this.id = id;
+        this.recipientRole = recipientRole;
+        this.branchId = branchId;
+        this.type = type;
+        this.title = title;
+        this.body = body;
+        this.icon = icon;
+        this.readAt = readAt;
+    }
 
     public enum NotifType {
         CHECK_IN, CHECK_OUT, LEAVE_REQUEST, LEAVE_APPROVED, LEAVE_REJECTED, SHIFT_REMINDER, SECURITY_ALERT

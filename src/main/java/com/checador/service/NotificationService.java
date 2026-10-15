@@ -6,7 +6,6 @@ import com.checador.entity.Notification.NotifType;
 import com.checador.entity.User;
 import com.checador.repository.NotificationRepository;
 import com.checador.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,13 +14,23 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notifRepo;
     private final UserRepository userRepo;
     private final RealtimeEventService realtimeEventService;
     private final WebPushService webPushService;
+
+    public NotificationService(
+            NotificationRepository notifRepo,
+            UserRepository userRepo,
+            RealtimeEventService realtimeEventService,
+            WebPushService webPushService) {
+        this.notifRepo = notifRepo;
+        this.userRepo = userRepo;
+        this.realtimeEventService = realtimeEventService;
+        this.webPushService = webPushService;
+    }
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final int MAX_NOTIFS = 50;

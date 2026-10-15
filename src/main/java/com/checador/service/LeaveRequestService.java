@@ -7,7 +7,6 @@ import com.checador.entity.LeaveRequest.LeaveType;
 import com.checador.entity.User;
 import com.checador.repository.BranchRepository;
 import com.checador.repository.LeaveRequestRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import com.checador.security.TenantContext;
 import org.springframework.stereotype.Service;
@@ -16,11 +15,15 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class LeaveRequestService {
 
     private final LeaveRequestRepository leaveRepository;
     private final BranchRepository branchRepository;
+
+    public LeaveRequestService(LeaveRequestRepository leaveRepository, BranchRepository branchRepository) {
+        this.leaveRepository = leaveRepository;
+        this.branchRepository = branchRepository;
+    }
 
     // ─── Empleado ──────────────────────────────────────────────────────────────
 

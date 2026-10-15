@@ -3,7 +3,6 @@ package com.checador.controller;
 import com.checador.entity.Notification;
 import com.checador.entity.User;
 import com.checador.service.NotificationService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -13,10 +12,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
-@RequiredArgsConstructor
 public class NotificationController {
 
     private final NotificationService notifService;
+
+    public NotificationController(NotificationService notifService) {
+        this.notifService = notifService;
+    }
 
     /** GET /api/notifications — lista las últimas 50 notificaciones del usuario autenticado */
     @GetMapping

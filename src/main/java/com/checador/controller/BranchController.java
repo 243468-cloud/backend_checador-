@@ -5,7 +5,6 @@ import com.checador.service.BranchService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,10 +13,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/branches")
-@RequiredArgsConstructor
 public class BranchController {
 
     private final BranchService branchService;
+
+    public BranchController(BranchService branchService) {
+        this.branchService = branchService;
+    }
 
     @GetMapping("/public")
     public ResponseEntity<List<Branch>> getPublicActiveBranches() {

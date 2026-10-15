@@ -10,7 +10,6 @@ import com.checador.service.BranchService;
 import com.checador.service.ReportService;
 import com.checador.service.UserService;
 import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -28,7 +27,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/attendance")
-@RequiredArgsConstructor
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
@@ -36,6 +34,19 @@ public class AttendanceController {
     private final BranchService branchService;
     private final ReportService reportService;
     private final UserRepository userRepository;
+
+    public AttendanceController(
+            AttendanceService attendanceService,
+            UserService userService,
+            BranchService branchService,
+            ReportService reportService,
+            UserRepository userRepository) {
+        this.attendanceService = attendanceService;
+        this.userService = userService;
+        this.branchService = branchService;
+        this.reportService = reportService;
+        this.userRepository = userRepository;
+    }
 
     // ─── Endpoints para EMPLEADO ──────────────────────────────────────────────
 

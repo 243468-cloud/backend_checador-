@@ -3,18 +3,20 @@ package com.checador.controller;
 import com.checador.service.RankingService;
 import com.checador.service.RankingService.RankingResponseDTO;
 import com.checador.service.RankingService.RewardsConfigDTO;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/ranking")
-@RequiredArgsConstructor
 @com.checador.security.RequiresModule("rankings")
 public class RankingController {
 
     private final RankingService rankingService;
+
+    public RankingController(RankingService rankingService) {
+        this.rankingService = rankingService;
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPERUSER', 'ADMIN', 'EMPLOYEE')")
