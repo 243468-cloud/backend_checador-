@@ -22,9 +22,13 @@ class MigrationIntegrationTest {
     private static String baseUrl;
     private static String dbUser;
     private static String dbPass;
+    private static boolean dbAvailable = false;
 
     @BeforeAll
     static void setUp() {
+        if (System.getProperty("os.name").toLowerCase().contains("win") && System.getenv("DOCKER_HOST") == null) {
+            System.setProperty("DOCKER_HOST", "npipe:////./pipe/docker_engine");
+        }
         try {
             mysql = new MySQLContainer<>("mysql:8.0.40")
                     .withDatabaseName("testdb")
@@ -34,11 +38,18 @@ class MigrationIntegrationTest {
             baseUrl = mysql.getJdbcUrl().substring(0, mysql.getJdbcUrl().lastIndexOf('/'));
             dbUser = mysql.getUsername();
             dbPass = mysql.getPassword();
+            dbAvailable = true;
         } catch (Throwable t) {
-            // Si el socket Docker npipe en Windows requiere fallback a MySQL en contenedor Docker local
-            baseUrl = "jdbc:mysql://localhost:3307";
-            dbUser = "root";
-            dbPass = "rootpw";
+            // Si Testcontainers no puede iniciar contenedores efímeros, probar MySQL local en puerto 3307
+            String fallbackUrl = "jdbc:mysql://localhost:3307";
+            try (Connection conn = DriverManager.getConnection(fallbackUrl + "?useSSL=false&allowPublicKeyRetrieval=true", "root", "rootpw")) {
+                baseUrl = fallbackUrl;
+                dbUser = "root";
+                dbPass = "rootpw";
+                dbAvailable = true;
+            } catch (Throwable fallbackErr) {
+                dbAvailable = false;
+            }
         }
     }
 
@@ -50,8 +61,10 @@ class MigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Migraciones en base vacía ejecutan V1, V2 y V3 exitosamente")
+    @DisplayName("Migraciones en base vacía ejecutan V1, V2, V3 y V4 exitosamente")
     void testFlywayOnEmptyDatabase() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(dbAvailable,
+                "Se omite la prueba: no se encontró entorno Docker funcional ni MySQL accesible en localhost:3307");
         String dbName = "tc_empty_db";
         String adminUrl = baseUrl + "/mysql?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Mexico_City";
         try (Connection rootConn = DriverManager.getConnection(adminUrl, dbUser, dbPass);
@@ -97,8 +110,10 @@ class MigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Migraciones en base existente aplican baseline V1 y ejecutan V2 y V3 exitosamente")
+    @DisplayName("Migraciones en base existente aplican baseline V1 y ejecutan V2, V3 y V4 exitosamente")
     void testFlywayOnLegacyDatabase() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(dbAvailable,
+                "Se omite la prueba: no se encontró entorno Docker funcional ni MySQL accesible en localhost:3307");
         String dbName = "tc_legacy_db";
         String adminUrl = baseUrl + "/mysql?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Mexico_City";
         try (Connection rootConn = DriverManager.getConnection(adminUrl, dbUser, dbPass);
