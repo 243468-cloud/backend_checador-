@@ -1,6 +1,7 @@
 # ─── Secrets & Environment Files ─────────────────────────────────────────────
 .env
 .env.*
+!.env.example
 application-local.yml
 application-prod.yml
 
