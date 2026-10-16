@@ -13,14 +13,40 @@ public class TenantSettingsService {
     private final TenantSettingsRepository repository;
     private final com.checador.repository.TenantModuleRepository moduleRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     public TenantSettingsService(
             TenantSettingsRepository repository,
             com.checador.repository.TenantModuleRepository moduleRepository,
-            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.repository = repository;
         this.moduleRepository = moduleRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final java.security.SecureRandom RANDOM = new java.security.SecureRandom();
+
+    public String generateInvitationCode(Long tenantId, Integer daysValid) {
+        TenantSettings settings = repository.findByTenantId(tenantId)
+                .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Configuración de empresa no encontrada"));
+
+        StringBuilder sb = new StringBuilder(10);
+        for (int i = 0; i < 10; i++) {
+            sb.append(CODE_CHARS.charAt(RANDOM.nextInt(CODE_CHARS.length())));
+        }
+        String plainCode = sb.toString();
+
+        settings.setInvitationCodeHash(passwordEncoder.encode(plainCode));
+        if (daysValid != null && daysValid > 0) {
+            settings.setInvitationExpiresAt(java.time.LocalDateTime.now().plusDays(daysValid));
+        } else {
+            settings.setInvitationExpiresAt(null);
+        }
+        repository.save(settings);
+        return plainCode;
     }
 
     /**

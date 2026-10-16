@@ -49,31 +49,16 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Asegurar que la columna shift_type en la base de datos sea VARCHAR(50) para soportar MIXED
-        try {
-            jdbcTemplate.execute("ALTER TABLE users MODIFY COLUMN shift_type VARCHAR(50) NULL");
-            jdbcTemplate.execute("ALTER TABLE attendances MODIFY COLUMN shift_type VARCHAR(50) NULL");
-            jdbcTemplate.execute("ALTER TABLE schedule_rosters MODIFY COLUMN shift_type VARCHAR(50) NULL");
-            log.info(" Base de datos actualizada: shift_type ampliado a VARCHAR(50).");
-        } catch (Exception e) {
-            log.info("Aviso al actualizar columnas shift_type: {}", e.getMessage());
-        }
-
         try {
             com.checador.security.TenantContext.setTenantId(0L);
-            // Crear superusuario si no existe y si se proveyó una contraseña
+            // Si ya existe superusuario, omitir seed
             if (userRepository.existsByRole(Role.SUPERUSER)) {
                 log.info("Superusuario ya existe. Omitiendo seed.");
                 return;
             }
 
             if (adminPassword == null || adminPassword.isBlank()) {
-                adminPassword = java.util.UUID.randomUUID().toString().substring(0, 8);
-                log.warn("=========================================================");
-                log.warn(" NO SE PROVEYÓ CONTRASEÑA DE SUPERADMIN (app.seed.superadmin.password).");
-                log.warn(" SE HA GENERADO UNA CONTRASEÑA ALEATORIA PARA EL SUPERADMIN: {}", adminPassword);
-                log.warn(" POR FAVOR GUÁRDALA O CÁMBIALA INMEDIATAMENTE.");
-                log.warn("=========================================================");
+                throw new IllegalStateException("Falta configurar la contraseña del superusuario inicial en app.seed.superadmin.password (o variable de entorno SUPERADMIN_PASSWORD). No se puede iniciar sin credencial de superadmin.");
             }
 
             User superadmin = User.builder()
@@ -87,7 +72,7 @@ public class DataSeeder implements CommandLineRunner {
             superadmin.setTenantId(0L); // Superadmin no pertenece a ningún tenant
             userRepository.save(superadmin);
 
-            log.info(" Superusuario '{}' creado exitosamente.", adminUsername);
+            log.info("Superusuario inicial '{}' creado exitosamente.", adminUsername);
         } finally {
             com.checador.security.TenantContext.clear();
         }

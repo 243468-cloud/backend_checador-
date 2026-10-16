@@ -46,6 +46,21 @@ public class TenantSettingsController {
     }
 
     /**
+     * PRIVADO (Solo ADMIN): Genera o rota el código de invitación para empleados.
+     */
+    @PostMapping("/current/invitation-code")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, Object>> generateInvitationCode(
+            @RequestParam(required = false) Integer daysValid) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        String code = service.generateInvitationCode(tenantId, daysValid);
+        return ResponseEntity.ok(java.util.Map.of(
+                "invitationCode", code,
+                "message", "Código de invitación generado exitosamente."
+        ));
+    }
+
+    /**
      * PRIVADO (Solo SUPERUSER): Obtiene todas las empresas registradas.
      */
     @GetMapping("/all")

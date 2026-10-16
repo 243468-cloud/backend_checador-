@@ -148,6 +148,7 @@ public class TenantIsolationIntegrationTest {
         attendanceB.setBranch(branchB);
         attendanceB.setAttendanceDate(LocalDate.now());
         attendanceB.setCheckInTime(LocalDateTime.now());
+        attendanceB.setShiftType(ShiftType.MORNING);
         attendanceB.setTenantId(2L);
         attendanceB = attendanceRepository.save(attendanceB);
         attendanceIdTenantB = attendanceB.getId();

@@ -71,7 +71,7 @@ class MigrationIntegrationTest {
 
         var result = flyway.migrate();
         assertTrue(result.success, "Flyway debe reportar éxito");
-        assertEquals(3, result.migrationsExecuted, "Debe ejecutar V1, V2 y V3");
+        assertEquals(4, result.migrationsExecuted, "Debe ejecutar V1, V2, V3 y V4");
 
         try (Connection conn = DriverManager.getConnection(targetUrl, dbUser, dbPass);
              Statement stmt = conn.createStatement()) {
@@ -136,7 +136,7 @@ class MigrationIntegrationTest {
 
         var result = flyway.migrate();
         assertTrue(result.success, "Flyway debe reportar éxito sobre base legacy");
-        assertEquals(2, result.migrationsExecuted, "Debe ejecutar V2 y V3 (omitiendo V1 por baseline)");
+        assertEquals(3, result.migrationsExecuted, "Debe ejecutar V2, V3 y V4 (omitiendo V1 por baseline)");
 
         try (Connection conn = DriverManager.getConnection(targetUrl, dbUser, dbPass);
              Statement stmt = conn.createStatement()) {

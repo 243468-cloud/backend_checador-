@@ -24,24 +24,107 @@ public class AuthController {
     private final UserService userService;
     private final com.checador.service.BranchService branchService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+    private final com.github.benmanes.caffeine.cache.Cache<String, java.util.concurrent.CopyOnWriteArrayList<Long>> registerRateLimit =
+            com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+                    .expireAfterWrite(1, java.util.concurrent.TimeUnit.MINUTES)
+                    .build();
 
     public AuthController(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             UserService userService,
             com.checador.service.BranchService branchService,
-            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.userService = userService;
         this.branchService = branchService;
         this.jdbcTemplate = jdbcTemplate;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    private boolean isRegisterRateLimited(String key, int maxAttempts) {
+        long now = System.currentTimeMillis();
+        java.util.concurrent.CopyOnWriteArrayList<Long> list = registerRateLimit.get(key, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
+        list.removeIf(t -> (now - t) > 60_000L);
+        if (list.size() >= maxAttempts) {
+            return true;
+        }
+        list.add(now);
+        return false;
+    }
+
+    private String resolveClientIp(jakarta.servlet.http.HttpServletRequest req) {
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        return req.getRemoteAddr();
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerEmployee(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<?> registerEmployee(
+            jakarta.servlet.http.HttpServletRequest servletRequest,
+            @Valid @RequestBody RegisterRequest request) {
+        String ip = resolveClientIp(servletRequest);
+        String slug = request.slug() != null ? request.slug().trim().toLowerCase() : "";
+
+        // Rate limit por IP (máx 5/min) y por Slug de empresa (máx 10/min)
+        if (isRegisterRateLimited("ip:" + ip, 5) || (!slug.isEmpty() && isRegisterRateLimited("slug:" + slug, 10))) {
+            return ResponseEntity.status(429).body(Map.of("error", "Demasiados intentos de registro. Espera 1 minuto e inténtalo de nuevo."));
+        }
+
+        if (slug.isBlank() || request.invitationCode() == null || request.invitationCode().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invitación o empresa inválida."));
+        }
+
+        // Buscar configuración de la empresa por slug
+        java.util.List<com.checador.entity.TenantSettings> list = jdbcTemplate.query(
+                "SELECT tenant_id, invitation_code_hash, invitation_expires_at FROM tenant_settings WHERE slug = ?",
+                (rs, rowNum) -> {
+                    com.checador.entity.TenantSettings ts = new com.checador.entity.TenantSettings();
+                    ts.setTenantId(rs.getLong("tenant_id"));
+                    ts.setInvitationCodeHash(rs.getString("invitation_code_hash"));
+                    java.sql.Timestamp exp = rs.getTimestamp("invitation_expires_at");
+                    if (exp != null) {
+                        ts.setInvitationExpiresAt(exp.toLocalDateTime());
+                    }
+                    return ts;
+                },
+                slug
+        );
+        if (list.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invitación o empresa inválida."));
+        }
+        var tenantSettings = list.get(0);
+
+        // Validar código de invitación contra hash y vencimiento
+        String hash = tenantSettings.getInvitationCodeHash();
+        if (hash == null || !passwordEncoder.matches(request.invitationCode().trim(), hash)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invitación o empresa inválida."));
+        }
+        if (tenantSettings.getInvitationExpiresAt() != null && java.time.LocalDateTime.now().isAfter(tenantSettings.getInvitationExpiresAt())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invitación o empresa inválida."));
+        }
+
+        Long tenantId = tenantSettings.getTenantId();
+        com.checador.security.TenantContext.setTenantId(tenantId);
         try {
-            var branch = branchService.findByIdWithTenant(request.branchId());
+            // Validar que la sucursal pertenezca a ESA empresa
+            com.checador.entity.Branch branch;
+            try {
+                branch = branchService.findByIdWithTenant(request.branchId());
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invitación o empresa inválida."));
+            }
+            if (branch == null || !tenantId.equals(branch.getTenantId())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invitación o empresa inválida."));
+            }
+
+            // Forzar rol EMPLOYEE e ignorar cualquier role, tenantId o active del cuerpo
             User user = userService.createEmployee(
                     request.username(),
                     request.password(),
@@ -60,15 +143,18 @@ public class AuthController {
             responseData.put("role", user.getRole().name());
             responseData.put("fullName", user.getFullName());
             responseData.put("userId", user.getId());
-            responseData.put("branchId", user.getBranch() != null ? user.getBranch().getId() : null);
-            responseData.put("branchName", user.getBranch() != null ? user.getBranch().getName() : null);
+            responseData.put("tenantId", tenantId);
+            responseData.put("branchId", branch.getId());
+            responseData.put("branchName", branch.getName());
             responseData.put("shiftType", user.getShiftType() != null ? user.getShiftType().name() : null);
 
             return ResponseEntity.ok(responseData);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Error al registrar empleado: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", "Error al procesar el registro de empleado."));
+        } finally {
+            com.checador.security.TenantContext.clear();
         }
     }
 
@@ -214,7 +300,12 @@ public class AuthController {
             String email,
 
             @jakarta.validation.constraints.NotNull(message = "La sucursal es requerida") Long branchId,
-            @jakarta.validation.constraints.NotNull(message = "El turno es requerido") com.checador.entity.ShiftType shiftType
+            @jakarta.validation.constraints.NotNull(message = "El turno es requerido") com.checador.entity.ShiftType shiftType,
+            @NotBlank(message = "La empresa es requerida") String slug,
+            @NotBlank(message = "El código de invitación es requerido") String invitationCode,
+            String role,
+            Long tenantId,
+            Boolean active
     ) {}
 }
 

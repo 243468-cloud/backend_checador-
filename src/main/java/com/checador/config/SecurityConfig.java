@@ -74,8 +74,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/audit/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/settings/all").hasRole("SUPERUSER")
 
-                // ── Configuración de la empresa: solo el ADMIN del tenant (SUPERUSER no tiene settings propios) ──
-                .requestMatchers(HttpMethod.PUT, "/api/settings/current").hasRole("ADMIN")
+                // ── Configuración de la empresa: ADMIN del tenant y SUPERUSER ──
+                .requestMatchers("/api/settings/current/**").hasAnyRole("ADMIN", "SUPERUSER")
 
                 // ── Horarios: lectura para EMPLOYEE, ADMIN y SUPERUSER; escritura solo ADMIN/SUPERUSER ──
                 .requestMatchers(HttpMethod.GET,    "/api/schedules/**").hasAnyRole("EMPLOYEE", "ADMIN", "SUPERUSER")

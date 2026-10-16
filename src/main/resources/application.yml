@@ -41,6 +41,11 @@ spring:
             enable: true
 
 app:
+  seed:
+    superadmin:
+      username: ${SUPERADMIN_USERNAME:superadmin}
+      password: ${SUPERADMIN_PASSWORD:}
+      email: ${SUPERADMIN_EMAIL:admin@example.com}
   cron-api-key: ${CRON_API_KEY:}
   jwt:
     # Sin valor por defecto — REQUIERE variable de entorno JWT_SECRET (mín. 256 bits en Base64)
