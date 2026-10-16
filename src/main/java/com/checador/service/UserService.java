@@ -42,6 +42,11 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        if (tenantId != null) {
+            return userRepository.findByUsernameAndTenantId(username, tenantId)
+                    .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
+        }
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
     }
@@ -50,7 +55,11 @@ public class UserService implements UserDetailsService {
     public User createAdmin(String username, String password, String fullName, String email, Branch branch) {
         String cleanUsername = username != null ? username.trim() : "";
         String cleanPassword = password != null ? password.trim() : "";
-        if (userRepository.existsByUsername(cleanUsername)) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        boolean exists = (tenantId != null)
+                ? userRepository.existsByUsernameAndTenantId(cleanUsername, tenantId)
+                : userRepository.existsByUsername(cleanUsername);
+        if (exists) {
             throw new IllegalArgumentException("El nombre de usuario ya existe");
         }
         return userRepository.save(User.builder()
@@ -69,7 +78,11 @@ public class UserService implements UserDetailsService {
                                 Branch branch, com.checador.entity.ShiftType shiftType) {
         String cleanUsername = username != null ? username.trim() : "";
         String cleanPassword = password != null ? password.trim() : "";
-        if (userRepository.existsByUsername(cleanUsername)) {
+        Long tenantId = com.checador.security.TenantContext.getTenantId();
+        boolean exists = (tenantId != null)
+                ? userRepository.existsByUsernameAndTenantId(cleanUsername, tenantId)
+                : userRepository.existsByUsername(cleanUsername);
+        if (exists) {
             throw new IllegalArgumentException("El nombre de usuario ya existe");
         }
         return userRepository.save(User.builder()
