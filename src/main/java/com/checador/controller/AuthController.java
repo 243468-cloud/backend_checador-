@@ -182,7 +182,7 @@ public class AuthController {
                 return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
             }
             if (matchedTenants.size() > 1) {
-                return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));
+                return ResponseEntity.status(401).body(Map.of("error", "Este usuario pertenece a múltiples empresas. Por favor ingresa desde el enlace de tu empresa o especifica el identificador (slug)."));
             }
             tenantId = matchedTenants.get(0);
             try {

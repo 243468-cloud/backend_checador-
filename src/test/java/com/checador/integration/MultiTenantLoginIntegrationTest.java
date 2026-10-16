@@ -172,7 +172,7 @@ class MultiTenantLoginIntegrationTest {
     }
 
     @Test
-    @DisplayName("Juan sin slug es rechazado al existir en múltiples empresas")
+    @DisplayName("Juan sin slug es rechazado al existir en múltiples empresas y pide especificar el slug")
     void testLoginAmbiguousUsernameWithoutSlugFails() throws Exception {
         String body = """
             {
@@ -185,6 +185,6 @@ class MultiTenantLoginIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Credenciales incorrectas. Verifica tu usuario o contraseña."));
+                .andExpect(jsonPath("$.error").value("Este usuario pertenece a múltiples empresas. Por favor ingresa desde el enlace de tu empresa o especifica el identificador (slug)."));
     }
 }
