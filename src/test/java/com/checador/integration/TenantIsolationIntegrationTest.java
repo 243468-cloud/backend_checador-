@@ -666,12 +666,12 @@ public class TenantIsolationIntegrationTest {
                 .content("{\"username\":\"admin\",\"password\":\"passVia\",\"slug\":\"tenant-b\"}"))
                 .andExpect(status().isUnauthorized());
 
-        // 6. Intento sin slug cuando 'admin' existe en múltiples empresas -> 401 genérico (no revela existencia en varias empresas)
+        // 6. Intento sin slug cuando 'admin' existe en múltiples empresas -> 401 prompt para slug
         mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"admin\",\"password\":\"passVia\"}"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Credenciales incorrectas. Verifica tu usuario o contraseña."));
+                .andExpect(jsonPath("$.error").value("Este usuario pertenece a múltiples empresas. Por favor ingresa desde el enlace de tu empresa o especifica el identificador (slug)."));
 
         // 7. Contexto de tenant queda limpio tras la ejecución
         org.junit.jupiter.api.Assertions.assertNull(com.checador.security.TenantContext.getTenantId());

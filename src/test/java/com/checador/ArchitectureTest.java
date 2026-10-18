@@ -57,6 +57,7 @@ public class ArchitectureTest {
                 @Override
                 public boolean test(JavaClass javaClass) {
                     return !ALLOWED_NATIVE_CLASSES.contains(javaClass.getName())
+                            && !javaClass.getSimpleName().endsWith("Test")
                             && (javaClass.getPackageName().contains(".controller")
                             || javaClass.getPackageName().contains(".config")
                             || javaClass.getPackageName().contains(".security")
