@@ -2,7 +2,7 @@ package com.checador.repository;
 
 import com.checador.entity.LeaveRequest;
 import com.checador.entity.LeaveRequest.LeaveStatus;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaRepository; 
 import org.springframework.stereotype.Repository;
 
 import java.util.List;

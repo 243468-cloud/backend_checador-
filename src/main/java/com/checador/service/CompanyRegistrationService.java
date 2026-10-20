@@ -71,7 +71,7 @@ public class CompanyRegistrationService {
                         .primaryColor("#4F46E5") // Color por defecto
                         .toleranceMinutes(10)
                         .subscriptionStatus(TenantSettings.SubscriptionStatus.TRIAL)
-                        .activeModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals")))
+                        .activeModules(new java.util.HashSet<>(java.util.List.of("schedules", "lateArrivals", "reports", "rankings")))
                         .build();
                 tenantSettings.setTenantId(newTenantId);
                 tenantSettings = tenantSettingsRepository.save(tenantSettings);

@@ -13,13 +13,31 @@ import java.util.List;
 public class BranchService {
 
     private final BranchRepository branchRepository;
+    private final TenantSettingsService tenantSettingsService;
 
-    public BranchService(BranchRepository branchRepository) {
+    public BranchService(BranchRepository branchRepository, TenantSettingsService tenantSettingsService) {
         this.branchRepository = branchRepository;
+        this.tenantSettingsService = tenantSettingsService;
     }
 
     public List<Branch> getAll() {
         return branchRepository.findByActive(true);
+    }
+
+    public List<Branch> getPublicBranchesBySlug(String slug) {
+        if (slug == null || slug.isBlank()) {
+            return List.of();
+        }
+        Long tenantId = tenantSettingsService.getTenantIdBySlug(slug);
+        if (tenantId == null) {
+            return List.of();
+        }
+        try {
+            TenantContext.setTenantId(tenantId);
+            return branchRepository.findByActive(true);
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     public Branch findByIdWithTenant(Long id) {

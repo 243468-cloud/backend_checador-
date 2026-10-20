@@ -67,8 +67,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/api/public/**", "/api/reports/public/**", "/api/branches/public", "/api/settings/public/**", "/error", "/actuator/health").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-                // ── Superusuario exclusivo ────────────────────────────────
-                .requestMatchers("/api/branches/**").hasAnyRole("SUPERUSER")
+                // ── Sucursales: ADMIN del tenant y SUPERUSER ──────────────
+                .requestMatchers("/api/branches/**").hasAnyRole("ADMIN", "SUPERUSER")
                 .requestMatchers("/api/admins/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/reports/global/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/audit/**").hasRole("SUPERUSER")

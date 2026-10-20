@@ -22,8 +22,11 @@ public class BranchController {
     }
 
     @GetMapping("/public")
-    public ResponseEntity<List<Branch>> getPublicActiveBranches() {
-        return ResponseEntity.ok(branchService.getAll());
+    public ResponseEntity<List<Branch>> getPublicActiveBranches(@RequestParam(required = false) String slug) {
+        if (slug == null || slug.isBlank()) {
+            return ResponseEntity.ok(List.of());
+        }
+        return ResponseEntity.ok(branchService.getPublicBranchesBySlug(slug));
     }
 
     @GetMapping

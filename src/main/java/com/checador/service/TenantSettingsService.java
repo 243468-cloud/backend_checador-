@@ -73,6 +73,24 @@ public class TenantSettingsService {
     }
 
     /**
+     * Resuelve el tenant_id a partir de un slug de forma segura sin requerir contexto previo.
+     */
+    public Long getTenantIdBySlug(String slug) {
+        if (slug == null || slug.isBlank()) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT tenant_id FROM tenant_settings WHERE slug = ?",
+                Long.class,
+                slug
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    /**
      * Endpoint privado para obtener la configuración del tenant actual (ya autenticado).
      */
     public TenantSettings getCurrentTenantSettings() {
