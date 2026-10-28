@@ -34,14 +34,10 @@ public abstract class BaseEntity {
 
     @PrePersist
     public void onPrePersist() {
-        System.out.println("DEBUG BaseEntity.onPrePersist: tenantId=" + tenantId);
         if (tenantId == null) {
             Long currentTenantId = TenantContext.getTenantId();
             if (currentTenantId != null) {
                 tenantId = currentTenantId;
-            } else {
-                // Para operaciones sin contexto HTTP, opcionalmente puedes establecer un valor por defecto o lanzar error.
-                System.out.println("DEBUG BaseEntity.onPrePersist: currentTenantId is also null!");
             }
         }
     }
