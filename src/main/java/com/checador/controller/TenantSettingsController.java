@@ -54,8 +54,8 @@ public class TenantSettingsController {
             @RequestParam(required = false) Integer daysValid,
             @RequestBody(required = false) java.util.Map<String, Object> body) {
         Integer effectiveDays = daysValid;
-        if (effectiveDays == null && body != null && body.get("daysValid") instanceof Number num) {
-            effectiveDays = num.intValue();
+        if (effectiveDays == null && body != null && body.get("daysValid") instanceof Number) {
+            effectiveDays = ((Number) body.get("daysValid")).intValue();
         }
         if (effectiveDays == null || effectiveDays <= 0) {
             effectiveDays = 7;
@@ -63,12 +63,12 @@ public class TenantSettingsController {
         Long tenantId = com.checador.security.TenantContext.getTenantId();
         String code = service.generateInvitationCode(tenantId, effectiveDays);
         String expiresAt = java.time.LocalDateTime.now().plusDays(effectiveDays).toString();
-        return ResponseEntity.ok(java.util.Map.of(
-                "invitationCode", code,
-                "code", code,
-                "expiresAt", expiresAt,
-                "message", "Código de invitación generado exitosamente."
-        ));
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("invitationCode", code);
+        response.put("code", code);
+        response.put("expiresAt", expiresAt);
+        response.put("message", "Código de invitación generado exitosamente.");
+        return ResponseEntity.ok(response);
     }
 
     /**
