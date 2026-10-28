@@ -51,11 +51,22 @@ public class TenantSettingsController {
     @PostMapping("/current/invitation-code")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<java.util.Map<String, Object>> generateInvitationCode(
-            @RequestParam(required = false) Integer daysValid) {
+            @RequestParam(required = false) Integer daysValid,
+            @RequestBody(required = false) java.util.Map<String, Object> body) {
+        Integer effectiveDays = daysValid;
+        if (effectiveDays == null && body != null && body.get("daysValid") instanceof Number num) {
+            effectiveDays = num.intValue();
+        }
+        if (effectiveDays == null || effectiveDays <= 0) {
+            effectiveDays = 7;
+        }
         Long tenantId = com.checador.security.TenantContext.getTenantId();
-        String code = service.generateInvitationCode(tenantId, daysValid);
+        String code = service.generateInvitationCode(tenantId, effectiveDays);
+        String expiresAt = java.time.LocalDateTime.now().plusDays(effectiveDays).toString();
         return ResponseEntity.ok(java.util.Map.of(
                 "invitationCode", code,
+                "code", code,
+                "expiresAt", expiresAt,
                 "message", "Código de invitación generado exitosamente."
         ));
     }

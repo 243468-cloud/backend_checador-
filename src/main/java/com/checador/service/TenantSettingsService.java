@@ -96,17 +96,18 @@ public class TenantSettingsService {
     public TenantSettings getCurrentTenantSettings() {
         Long tenantId = TenantContext.getTenantId();
         if (tenantId == null || tenantId == 0L) {
+            java.util.Set<String> allModules = java.util.Set.of("schedules", "lateArrivals", "reports", "rankings");
             TenantSettings superSettings = repository.findByTenantId(0L).orElseGet(() -> {
                 TenantSettings ts = new TenantSettings();
                 ts.setTenantId(0L);
                 ts.setCompanyName("Superadministrador");
                 ts.setPrimaryColor("#4F46E5");
                 ts.setSlug("superadmin");
-                ts.setActiveModules(java.util.Collections.emptySet());
+                ts.setActiveModules(allModules);
                 return ts;
             });
-            if (superSettings.getActiveModules() == null) {
-                superSettings.setActiveModules(java.util.Collections.emptySet());
+            if (superSettings.getActiveModules() == null || superSettings.getActiveModules().isEmpty()) {
+                superSettings.setActiveModules(allModules);
             }
             return superSettings;
         }
