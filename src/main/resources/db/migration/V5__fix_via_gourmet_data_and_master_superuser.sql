@@ -76,6 +76,8 @@ BEGIN
     -- 5. Si existen datos de Via Gourmet (tenant_id = 1), asegurar su fila en tenant_settings y sus 4 módulos en tenant_modules
     IF EXISTS (SELECT 1 FROM users WHERE tenant_id = 1) THEN
         IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'tenant_settings') THEN
+            UPDATE tenant_settings SET company_name = 'Via Gourmet', slug = 'via-gourmet' WHERE tenant_id = 1;
+
             INSERT INTO tenant_settings (tenant_id, company_name, slug, primary_color, tolerance_minutes, subscription_status, created_at)
             SELECT 1, 'Via Gourmet', 'via-gourmet', '#e11d48', 10, 'ACTIVE', NOW()
             FROM DUAL
@@ -95,6 +97,44 @@ BEGIN
                 SELECT 1 FROM tenant_modules tm WHERE tm.tenant_id = 1 AND tm.module_name = m.module_name
             );
         END IF;
+    END IF;
+
+    -- 6. Separar Miel de la Selva Maya (tenant_id = 2) para Magdalena Sánchez si existe en users
+    IF v_has_email > 0 AND EXISTS (SELECT 1 FROM users WHERE LOWER(email) = 'galeriemaya@hotmail.com' OR id = 20) THEN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'tenant_settings') THEN
+            INSERT INTO tenant_settings (tenant_id, company_name, slug, primary_color, tolerance_minutes, subscription_status, created_at)
+            SELECT 2, 'Miel de la Selva Maya', 'miel-de-la-selva-maya', '#d97706', 10, 'ACTIVE', NOW()
+            FROM DUAL
+            WHERE NOT EXISTS (SELECT 1 FROM tenant_settings WHERE tenant_id = 2);
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'tenant_modules') THEN
+            INSERT INTO tenant_modules (tenant_id, module_name)
+            SELECT 2, m.module_name
+            FROM (
+                SELECT 'schedules' AS module_name UNION ALL
+                SELECT 'lateArrivals' UNION ALL
+                SELECT 'reports' UNION ALL
+                SELECT 'rankings'
+            ) m
+            WHERE NOT EXISTS (
+                SELECT 1 FROM tenant_modules tm WHERE tm.tenant_id = 2 AND tm.module_name = m.module_name
+            );
+        END IF;
+
+        IF v_has_branches > 0 THEN
+            INSERT INTO branches (tenant_id, name, address, latitude, longitude, radius_meters, tolerance_minutes, active, created_at)
+            SELECT 2, 'Miel de la Selva Maya', 'Sucursal Principal', 19.4326077, -99.1332080, 100, 10, 1, NOW()
+            FROM DUAL
+            WHERE NOT EXISTS (SELECT 1 FROM branches WHERE tenant_id = 2);
+        END IF;
+
+        UPDATE users
+        SET role = 'ADMIN',
+            tenant_id = 2,
+            branch_id = (SELECT id FROM branches WHERE tenant_id = 2 ORDER BY id ASC LIMIT 1),
+            active = 1
+        WHERE LOWER(email) = 'galeriemaya@hotmail.com' OR id = 20;
     END IF;
 END$$
 DELIMITER ;
