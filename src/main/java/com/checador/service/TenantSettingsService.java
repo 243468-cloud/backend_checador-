@@ -1,5 +1,6 @@
 package com.checador.service;
 
+import com.checador.entity.Branch;
 import com.checador.entity.TenantSettings;
 import com.checador.repository.TenantSettingsRepository;
 import com.checador.security.TenantContext;
@@ -84,6 +85,45 @@ public class TenantSettingsService {
                 "SELECT tenant_id FROM tenant_settings WHERE slug = ?",
                 Long.class,
                 slug
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Uso exclusivo para SUPERUSER (tenant_id = 0): Obtiene todas las sucursales activas de todas las empresas.
+     */
+    public List<Branch> findAllActiveBranchesForSuperuser() {
+        return jdbcTemplate.query(
+                "SELECT id, tenant_id, name, address, latitude, longitude, radius_meters, tolerance_minutes, active FROM branches WHERE active = 1 ORDER BY id ASC",
+                (rs, rowNum) -> {
+                    Branch b = Branch.builder()
+                            .id(rs.getLong("id"))
+                            .name(rs.getString("name"))
+                            .address(rs.getString("address"))
+                            .latitude(rs.getDouble("latitude"))
+                            .longitude(rs.getDouble("longitude"))
+                            .radiusMeters(rs.getInt("radius_meters"))
+                            .toleranceMinutes(rs.getInt("tolerance_minutes"))
+                            .active(rs.getBoolean("active"))
+                            .build();
+                    b.setTenantId(rs.getLong("tenant_id"));
+                    return b;
+                }
+        );
+    }
+
+    /**
+     * Uso exclusivo para SUPERUSER (tenant_id = 0): Resuelve el tenant_id al que pertenece una sucursal.
+     */
+    public Long findBranchTenantIdForSuperuser(Long branchId) {
+        if (branchId == null) return null;
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT tenant_id FROM branches WHERE id = ?",
+                    Long.class,
+                    branchId
             );
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return null;

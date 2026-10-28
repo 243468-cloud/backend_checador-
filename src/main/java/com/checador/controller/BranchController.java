@@ -31,11 +31,13 @@ public class BranchController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<List<Branch>> getAll() {
         return ResponseEntity.ok(branchService.getAll());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<Branch> getById(@PathVariable Long id) {
         return ResponseEntity.ok(branchService.findByIdWithTenant(id));
     }
