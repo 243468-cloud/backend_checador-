@@ -113,7 +113,15 @@ public class TenantSettingsService {
         }
 
         TenantSettings settings = repository.findByTenantId(tenantId)
-                .orElseThrow(() -> new RuntimeException("Configuración no encontrada para el tenant actual"));
+                .orElseGet(() -> {
+                    TenantSettings fallback = new TenantSettings();
+                    fallback.setTenantId(tenantId);
+                    fallback.setCompanyName("Via Gourmet");
+                    fallback.setSlug("tenant-" + tenantId);
+                    fallback.setPrimaryColor("#4F46E5");
+                    fallback.setToleranceMinutes(10);
+                    return repository.save(fallback);
+                });
         java.util.List<com.checador.entity.TenantModule> mods = moduleRepository.findByTenantId(tenantId);
         settings.setActiveModules(mods.stream().map(com.checador.entity.TenantModule::getModuleName).collect(java.util.stream.Collectors.toSet()));
         return settings;
