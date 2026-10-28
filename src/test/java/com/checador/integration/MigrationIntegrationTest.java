@@ -61,7 +61,7 @@ class MigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Migraciones en base vacía ejecutan V1, V2, V3 y V4 exitosamente")
+    @DisplayName("Migraciones en base vacía ejecutan V1, V2, V3, V4 y V5 exitosamente")
     void testFlywayOnEmptyDatabase() throws Exception {
         org.junit.jupiter.api.Assumptions.assumeTrue(dbAvailable,
                 "Se omite la prueba: no se encontró entorno Docker funcional ni MySQL accesible en localhost:3307");
@@ -84,7 +84,7 @@ class MigrationIntegrationTest {
 
         var result = flyway.migrate();
         assertTrue(result.success, "Flyway debe reportar éxito");
-        assertEquals(4, result.migrationsExecuted, "Debe ejecutar V1, V2, V3 y V4");
+        assertEquals(5, result.migrationsExecuted, "Debe ejecutar V1, V2, V3, V4 y V5");
 
         try (Connection conn = DriverManager.getConnection(targetUrl, dbUser, dbPass);
              Statement stmt = conn.createStatement()) {
@@ -110,7 +110,7 @@ class MigrationIntegrationTest {
     }
 
     @Test
-    @DisplayName("Migraciones en base existente aplican baseline V1 y ejecutan V2, V3 y V4 exitosamente")
+    @DisplayName("Migraciones en base existente aplican baseline V1 y ejecutan V2, V3, V4 y V5 exitosamente")
     void testFlywayOnLegacyDatabase() throws Exception {
         org.junit.jupiter.api.Assumptions.assumeTrue(dbAvailable,
                 "Se omite la prueba: no se encontró entorno Docker funcional ni MySQL accesible en localhost:3307");
@@ -151,7 +151,7 @@ class MigrationIntegrationTest {
 
         var result = flyway.migrate();
         assertTrue(result.success, "Flyway debe reportar éxito sobre base legacy");
-        assertEquals(3, result.migrationsExecuted, "Debe ejecutar V2, V3 y V4 (omitiendo V1 por baseline)");
+        assertEquals(4, result.migrationsExecuted, "Debe ejecutar V2, V3, V4 y V5 (omitiendo V1 por baseline)");
 
         try (Connection conn = DriverManager.getConnection(targetUrl, dbUser, dbPass);
              Statement stmt = conn.createStatement()) {

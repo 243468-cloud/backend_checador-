@@ -154,18 +154,60 @@ public class TenantSettingsService {
         return jdbcTemplate.query("SELECT * FROM tenant_settings", (rs, rowNum) -> {
             TenantSettings ts = new TenantSettings();
             ts.setId(rs.getLong("id"));
-            ts.setTenantId(rs.getLong("tenant_id"));
+            Long tId = rs.getLong("tenant_id");
+            ts.setTenantId(tId);
             ts.setCompanyName(rs.getString("company_name"));
             ts.setSlug(rs.getString("slug"));
             ts.setLogoUrl(rs.getString("logo_url"));
             ts.setIconUrl(rs.getString("icon_url"));
             ts.setPrimaryColor(rs.getString("primary_color"));
             ts.setToleranceMinutes(rs.getInt("tolerance_minutes"));
-            
-            // Note: active_modules is a separate table, fetching it per row might be N+1,
-            // but since this is superadmin and small scale, we can query it or leave it null/empty.
+            String subStatus = rs.getString("subscription_status");
+            if (subStatus != null) {
+                try {
+                    ts.setSubscriptionStatus(TenantSettings.SubscriptionStatus.valueOf(subStatus));
+                } catch (Exception ignored) {}
+            }
+            java.sql.Timestamp createdTs = rs.getTimestamp("created_at");
+            if (createdTs != null) {
+                ts.setCreatedAt(createdTs.toLocalDateTime());
+            }
+            java.util.List<String> mods = jdbcTemplate.queryForList(
+                    "SELECT module_name FROM tenant_modules WHERE tenant_id = ?", String.class, tId);
+            ts.setActiveModules(new java.util.HashSet<>(mods));
             return ts;
         });
+    }
+
+    /**
+     * PRIVADO (Solo SUPERUSER): Actualiza el branding (nombre, logo, ícono, color, estado) de una empresa.
+     */
+    public TenantSettings updateBrandingForTenant(Long targetTenantId, TenantSettings updatedData) {
+        String logoUrl = (updatedData.getLogoUrl() != null && !updatedData.getLogoUrl().isBlank())
+                ? ImageUrlValidator.validate(updatedData.getLogoUrl(), "logoUrl") : null;
+        String iconUrl = (updatedData.getIconUrl() != null && !updatedData.getIconUrl().isBlank())
+                ? ImageUrlValidator.validate(updatedData.getIconUrl(), "iconUrl") : null;
+
+        jdbcTemplate.update(
+                "UPDATE tenant_settings SET " +
+                "company_name = COALESCE(?, company_name), " +
+                "primary_color = COALESCE(?, primary_color), " +
+                "logo_url = ?, " +
+                "icon_url = ?, " +
+                "subscription_status = COALESCE(?, subscription_status) " +
+                "WHERE tenant_id = ?",
+                updatedData.getCompanyName(),
+                updatedData.getPrimaryColor(),
+                logoUrl,
+                iconUrl,
+                updatedData.getSubscriptionStatus() != null ? updatedData.getSubscriptionStatus().name() : null,
+                targetTenantId
+        );
+
+        return getAllTenantsForSuperadmin().stream()
+                .filter(t -> targetTenantId.equals(t.getTenantId()))
+                .findFirst()
+                .orElseThrow(() -> new com.checador.exception.ResourceNotFoundException("Empresa no encontrada"));
     }
 
     /**

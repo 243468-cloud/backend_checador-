@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,6 +41,7 @@ public class BranchController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<Branch> create(@Valid @RequestBody BranchRequest req) {
         Branch branch = branchService.create(req.name(), req.address(), req.latitude(),
                 req.longitude(), req.radiusMeters(), req.toleranceMinutes());
@@ -47,6 +49,7 @@ public class BranchController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<Branch> update(@PathVariable Long id,
                                           @RequestBody BranchRequest req) {
         Branch branch = branchService.update(id, req.name(), req.address(), req.latitude(),
@@ -55,6 +58,7 @@ public class BranchController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<?> deactivate(@PathVariable Long id) {
         branchService.deactivate(id);
         return ResponseEntity.ok(Map.of("message", "Sucursal desactivada"));
@@ -69,4 +73,3 @@ public class BranchController {
             Integer toleranceMinutes
     ) {}
 }
-

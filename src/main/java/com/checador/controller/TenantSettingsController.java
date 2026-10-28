@@ -90,4 +90,15 @@ public class TenantSettingsController {
             @RequestBody java.util.Set<String> modules) {
         return ResponseEntity.ok(service.updateModulesForTenant(tenantId, modules));
     }
+
+    /**
+     * PRIVADO (Solo SUPERUSER): Actualiza el branding (nombre, logo, ícono, color, estado) de una empresa.
+     */
+    @PutMapping("/tenant/{tenantId}/branding")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPERUSER')")
+    public ResponseEntity<TenantSettings> updateBrandingForTenant(
+            @PathVariable Long tenantId,
+            @RequestBody TenantSettings branding) {
+        return ResponseEntity.ok(service.updateBrandingForTenant(tenantId, branding));
+    }
 }
