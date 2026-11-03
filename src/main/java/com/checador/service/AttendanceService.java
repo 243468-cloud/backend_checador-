@@ -56,14 +56,19 @@ public class AttendanceService {
     public Attendance checkIn(User employee, Branch branch, double lat, double lng) {
         LocalDate today = LocalDate.now(MEXICO_ZONE);
 
-        // 1. Verificar si ya tiene un turno activo sin cerrar
+        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
+
+        // 1. Auto-cerrar cualquier turno olvidado de días previos (>14h o fecha anterior)
+        autoCloseStaleAttendancesForUser(employee.getId(), today, now);
+
+        // 2. Verificar si aún tiene un turno activo de hoy sin cerrar
         Optional<Attendance> activeOpt = attendanceRepository
                 .findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(employee.getId());
         if (activeOpt.isPresent()) {
-            throw new IllegalStateException("Ya tienes una entrada activa registrada. Debes marcar salida antes de iniciar un nuevo turno.");
+            throw new IllegalStateException("Ya tienes una entrada activa registrada hoy. Debes marcar salida antes de iniciar un nuevo turno.");
         }
 
-        // 2. Verificar que no haya completado ya su jornada hoy
+        // 3. Verificar que no haya completado ya su jornada hoy
         if (attendanceRepository.existsByUserIdAndAttendanceDate(employee.getId(), today)) {
             throw new IllegalStateException("Ya completaste tu registro de asistencia de hoy.");
         }
@@ -152,6 +157,10 @@ public class AttendanceService {
     @Transactional
     public Attendance checkOut(User employee, Branch branch, double lat, double lng) {
         LocalDate today = LocalDate.now(MEXICO_ZONE);
+        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
+
+        // Auto-cerrar cualquier turno previo olvidado para no cruzar fechas
+        autoCloseStaleAttendancesForUser(employee.getId(), today, now);
 
         // Buscar el turno activo sin cerrar
         Attendance attendance = attendanceRepository
@@ -251,15 +260,77 @@ public class AttendanceService {
     /**
      * Obtiene el estado actual del empleado (mantiene el turno activo al cambiar de dispositivo).
      */
+    /**
+     * Obtiene el estado actual del empleado (mantiene el turno activo al cambiar de dispositivo).
+     * Si existe un turno abierto de un día anterior, lo auto-cierra para que no aparezca "SALIDA" indebidamente.
+     */
+    @Transactional
     public Optional<Attendance> getTodayAttendance(Long userId) {
-        // 1. Si hay un turno activo abierto (checkIn sin checkOut), retornar ese turno activo
+        LocalDate today = LocalDate.now(MEXICO_ZONE);
+        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
+
+        // 1. Auto-cerrar turnos olvidados de días anteriores para este usuario
+        autoCloseStaleAttendancesForUser(userId, today, now);
+
+        // 2. Si hay un turno activo abierto HOY (checkIn sin checkOut), retornar ese turno activo
         Optional<Attendance> active = attendanceRepository
                 .findTopByUserIdAndCheckOutTimeIsNullOrderByCheckInTimeDesc(userId);
         if (active.isPresent()) {
             return active;
         }
-        // 2. Si no hay turno abierto, retornar el registro de hoy
-        return attendanceRepository.findByUserIdAndAttendanceDate(userId, LocalDate.now(MEXICO_ZONE));
+        // 3. Si no hay turno abierto, retornar el registro de hoy
+        return attendanceRepository.findByUserIdAndAttendanceDate(userId, today);
+    }
+
+    /**
+     * Revisa si existen turnos abiertos de días anteriores o con más de 14 horas transcurridas.
+     * Si un empleado olvidó marcar salida ayer o en un turno previo, este método auto-cierra
+     * ese registro a la hora oficial de finalización para que al día siguiente no aparezca
+     * el botón "SALIDA" ni bloquee la nueva "ENTRADA".
+     */
+    @Transactional
+    public void autoCloseStaleAttendancesForUser(Long userId, LocalDate today, LocalDateTime now) {
+        List<Attendance> unclosedList = attendanceRepository.findActiveAttendanceList(userId);
+        for (Attendance prev : unclosedList) {
+            boolean isPreviousDay = prev.getAttendanceDate() != null && prev.getAttendanceDate().isBefore(today);
+            long hoursElapsed = prev.getCheckInTime() != null
+                    ? java.time.Duration.between(prev.getCheckInTime(), now).toHours()
+                    : 24;
+
+            if (isPreviousDay || hoursElapsed >= 14) {
+                autoCloseStaleAttendance(prev, now);
+            }
+        }
+    }
+
+    private void autoCloseStaleAttendance(Attendance attendance, LocalDateTime now) {
+        ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : ShiftType.MORNING;
+        LocalTime scheduledEnd = getShiftEnd(shift);
+        LocalDate shiftDate = attendance.getAttendanceDate() != null
+                ? attendance.getAttendanceDate()
+                : (attendance.getCheckInTime() != null ? attendance.getCheckInTime().toLocalDate() : LocalDate.now(MEXICO_ZONE));
+
+        LocalDateTime autoCheckOut = shiftDate.atTime(scheduledEnd);
+        if (attendance.getCheckInTime() != null && autoCheckOut.isBefore(attendance.getCheckInTime())) {
+            autoCheckOut = autoCheckOut.plusDays(1);
+        }
+        if (attendance.getCheckInTime() != null && (autoCheckOut.isBefore(attendance.getCheckInTime()) || autoCheckOut.isAfter(now))) {
+            autoCheckOut = attendance.getCheckInTime().plusHours(8);
+        }
+
+        attendance.setCheckOutTime(autoCheckOut);
+        if (attendance.getCheckOutLatitude() == null) {
+            attendance.setCheckOutLatitude(attendance.getCheckInLatitude());
+        }
+        if (attendance.getCheckOutLongitude() == null) {
+            attendance.setCheckOutLongitude(attendance.getCheckInLongitude());
+        }
+        attendance.calculateHoursWorked();
+        if (attendance.getStatus() == AttendanceStatus.IN_SHIFT) {
+            attendance.setStatus(AttendanceStatus.ON_TIME);
+        }
+        attendance.setNotes("Salida no registrada a tiempo (Cierre automático por cambio de día)");
+        attendanceRepository.save(attendance);
     }
 
     /**
