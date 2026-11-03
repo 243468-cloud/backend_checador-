@@ -66,10 +66,17 @@ public class BranchService {
     @Transactional
     public Branch create(String name, String address, Double lat, Double lng,
                          Integer radiusMeters, Integer toleranceMinutes) {
+        return create(name, address, lat, lng, radiusMeters, toleranceMinutes, null);
+    }
+
+    @Transactional
+    public Branch create(String name, String address, Double lat, Double lng,
+                         Integer radiusMeters, Integer toleranceMinutes, Long targetTenantId) {
         Long tenantId = TenantContext.getTenantId();
         boolean isSuperuserContext = (tenantId != null && tenantId == 0L);
+        Long effectiveTenantId = (targetTenantId != null && targetTenantId > 0) ? targetTenantId : 1L;
         if (isSuperuserContext) {
-            TenantContext.setTenantId(1L);
+            TenantContext.setTenantId(effectiveTenantId);
         }
         try {
             Branch branch = Branch.builder()
@@ -81,10 +88,16 @@ public class BranchService {
                     .toleranceMinutes(toleranceMinutes != null ? toleranceMinutes : 10)
                     .active(true)
                     .build();
-            if (isSuperuserContext) {
-                branch.setTenantId(1L);
-            }
-            return branchRepository.save(branch);
+            branch.setTenantId(effectiveTenantId);
+            Branch saved = branchRepository.save(branch);
+            try {
+                var ts = tenantSettingsService.getSettingsByTenantId(effectiveTenantId);
+                if (ts != null) {
+                    saved.setTenantSlug(ts.getSlug());
+                    saved.setCompanyName(ts.getCompanyName());
+                }
+            } catch (Exception ignored) {}
+            return saved;
         } finally {
             if (isSuperuserContext) {
                 TenantContext.setTenantId(0L);

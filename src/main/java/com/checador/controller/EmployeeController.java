@@ -24,10 +24,12 @@ public class EmployeeController {
 
     private final UserService userService;
     private final BranchService branchService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    public EmployeeController(UserService userService, BranchService branchService) {
+    public EmployeeController(UserService userService, BranchService branchService, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.userService = userService;
         this.branchService = branchService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @GetMapping
@@ -140,6 +142,15 @@ public class EmployeeController {
         catch (Exception e) { return ""; }
     }
 
+    private String getCompanyNameSafely(Long tenantId) {
+        if (tenantId == null || tenantId == 0L) return "Global";
+        try {
+            return jdbcTemplate.queryForObject("SELECT company_name FROM tenant_settings WHERE tenant_id = ?", String.class, tenantId);
+        } catch (Exception e) {
+            return "Matriz #" + tenantId;
+        }
+    }
+
     private Map<String, Object> toResponse(User u) {
         Map<String, Object> res = new java.util.HashMap<>();
         res.put("id", u.getId());
@@ -152,6 +163,8 @@ public class EmployeeController {
         res.put("profilePicture", u.getProfilePicture() != null ? u.getProfilePicture() : "");
         res.put("branchId", getBranchIdSafely(u));
         res.put("branchName", getBranchNameSafely(u));
+        res.put("tenantId", u.getTenantId());
+        res.put("companyName", getCompanyNameSafely(u.getTenantId()));
         return res;
     }
 

@@ -21,10 +21,16 @@ public class AdminController {
 
     private final UserService userService;
     private final BranchService branchService;
+    private final com.checador.repository.UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public AdminController(UserService userService, BranchService branchService) {
+    public AdminController(UserService userService, BranchService branchService,
+                           com.checador.repository.UserRepository userRepository,
+                           org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.branchService = branchService;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping
@@ -32,6 +38,36 @@ public class AdminController {
     public ResponseEntity<?> getAdmins() {
         List<User> admins = userService.getAdmins();
         return ResponseEntity.ok(admins.stream().map(this::toResponse).toList());
+    }
+
+    @GetMapping("/superusers")
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> getSuperusers() {
+        List<User> superusers = userRepository.findByRole(Role.SUPERUSER);
+        return ResponseEntity.ok(superusers.stream().map(this::toResponse).toList());
+    }
+
+    @PostMapping("/superusers")
+    @Transactional
+    public ResponseEntity<?> createSuperuser(@Valid @RequestBody SuperuserRequest req) {
+        String cleanUsername = req.username() != null ? req.username().trim() : "";
+        String cleanPassword = req.password() != null ? req.password().trim() : "";
+        if (cleanUsername.isBlank() || cleanPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Usuario y contraseña requeridos"));
+        }
+        if (userRepository.existsByUsername(cleanUsername)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "El nombre de usuario ya existe"));
+        }
+        User superuser = User.builder()
+                .username(cleanUsername)
+                .password(passwordEncoder.encode(cleanPassword))
+                .fullName(req.fullName() != null ? req.fullName().trim() : cleanUsername)
+                .email(req.email() != null ? req.email().trim() : null)
+                .role(Role.SUPERUSER)
+                .active(true)
+                .build();
+        superuser.setTenantId(0L);
+        return ResponseEntity.ok(toResponse(userRepository.save(superuser)));
     }
 
     @PostMapping
@@ -103,6 +139,8 @@ public class AdminController {
         res.put("branchName", getBranchNameSafely(u));
         return res;
     }
+
+    public record SuperuserRequest(@NotBlank String username, @NotBlank String password, @NotBlank String fullName, String email) {}
 
     public record AdminRequest(
             @NotBlank String username,

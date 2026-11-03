@@ -46,7 +46,7 @@ public class BranchController {
     @PreAuthorize("hasRole('SUPERUSER')")
     public ResponseEntity<Branch> create(@Valid @RequestBody BranchRequest req) {
         Branch branch = branchService.create(req.name(), req.address(), req.latitude(),
-                req.longitude(), req.radiusMeters(), req.toleranceMinutes());
+                req.longitude(), req.radiusMeters(), req.toleranceMinutes(), req.tenantId());
         return ResponseEntity.ok(branch);
     }
 
@@ -72,6 +72,7 @@ public class BranchController {
             @NotNull Double latitude,
             @NotNull Double longitude,
             Integer radiusMeters,
-            Integer toleranceMinutes
+            Integer toleranceMinutes,
+            Long tenantId
     ) {}
 }

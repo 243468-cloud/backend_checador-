@@ -39,4 +39,10 @@ public class Branch extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean active = true;
+
+    @Transient
+    private String tenantSlug;
+
+    @Transient
+    private String companyName;
 }

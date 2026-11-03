@@ -96,7 +96,11 @@ public class TenantSettingsService {
      */
     public List<Branch> findAllActiveBranchesForSuperuser() {
         return jdbcTemplate.query(
-                "SELECT id, tenant_id, name, address, latitude, longitude, radius_meters, tolerance_minutes, active FROM branches WHERE active = 1 ORDER BY id ASC",
+                "SELECT b.id, b.tenant_id, b.name, b.address, b.latitude, b.longitude, b.radius_meters, b.tolerance_minutes, b.active, " +
+                "       COALESCE(ts.company_name, 'Sin Empresa') AS company_name, COALESCE(ts.slug, 'via-gourmet') AS tenant_slug " +
+                "FROM branches b " +
+                "LEFT JOIN tenant_settings ts ON ts.tenant_id = b.tenant_id " +
+                "WHERE b.active = 1 ORDER BY b.id ASC",
                 (rs, rowNum) -> {
                     Branch b = Branch.builder()
                             .id(rs.getLong("id"))
@@ -107,6 +111,8 @@ public class TenantSettingsService {
                             .radiusMeters(rs.getInt("radius_meters"))
                             .toleranceMinutes(rs.getInt("tolerance_minutes"))
                             .active(rs.getBoolean("active"))
+                            .tenantSlug(rs.getString("tenant_slug"))
+                            .companyName(rs.getString("company_name"))
                             .build();
                     b.setTenantId(rs.getLong("tenant_id"));
                     return b;
