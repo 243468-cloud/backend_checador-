@@ -2,37 +2,67 @@ package com.checador.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Base64;
 import java.util.Locale;
 
 /**
- * Valida URLs de imágenes de marca (logoUrl / iconUrl) antes de persistirlas.
+ * Valida URLs de imágenes de marca (logoUrl / iconUrl) o cadenas Base64 (data:image/...) antes de persistirlas.
  *
- * <p>El backend solo guarda la URL, no el archivo. Por eso aquí se aplican las reglas que se pueden
- * comprobar sin red: solo https, sin credenciales, sin hosts locales/internos, sin IPs literales y
- * sin SVG. El tipo MIME real, el tamaño máximo y la resolución DNS se validan al descargar la imagen
- * (frontend: {@code /api/icons/[slug]/[size]}).</p>
+ * <p>Permite tanto URLs https seguras como cadenas Data URL en Base64 (PNG, JPEG, WEBP) generadas al subir
+ * una imagen desde el celular o laptop sin guardar archivos en disco.</p>
  */
 public final class ImageUrlValidator {
 
-    /** Longitud de la columna logo_url / icon_url (VARCHAR(255) por defecto). */
-    static final int MAX_LENGTH = 255;
+    /** Longitud máxima para URLs remotas https. */
+    static final int MAX_URL_LENGTH = 2048;
+    /** Longitud máxima para imágenes codificadas en Base64 (~2 MB en texto Base64). */
+    static final int MAX_DATA_URI_LENGTH = 2_000_000;
 
     private ImageUrlValidator() {
     }
 
     /**
-     * @param value URL a validar
+     * @param value URL https o cadena data:image/(png|jpeg|jpg|webp);base64,...
      * @param field nombre del campo, solo para el mensaje de error
-     * @return la URL sin espacios laterales
-     * @throws IllegalArgumentException si la URL no cumple las reglas (se traduce a HTTP 400)
+     * @return la URL o Data URI sin espacios laterales
+     * @throws IllegalArgumentException si no cumple las reglas (se traduce a HTTP 400)
      */
     public static String validate(String value, String field) {
         if (value == null || value.isBlank()) {
             throw invalid(field, "no puede estar vacío");
         }
         String url = value.trim();
-        if (url.length() > MAX_LENGTH) {
-            throw invalid(field, "excede " + MAX_LENGTH + " caracteres");
+
+        // Soporte para imágenes en Base64 (data:image/png;base64,... | jpeg | jpg | webp)
+        String lower = url.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("data:image/")) {
+            if (url.length() > MAX_DATA_URI_LENGTH) {
+                throw invalid(field, "la imagen en Base64 es demasiado grande (máximo 1.5 MB)");
+            }
+            if (!(lower.startsWith("data:image/png;base64,")
+                    || lower.startsWith("data:image/jpeg;base64,")
+                    || lower.startsWith("data:image/jpg;base64,")
+                    || lower.startsWith("data:image/webp;base64,"))) {
+                throw invalid(field, "solo se permiten imágenes PNG, JPG o WEBP en Base64");
+            }
+            int commaIdx = url.indexOf(',');
+            if (commaIdx < 0 || commaIdx == url.length() - 1) {
+                throw invalid(field, "datos Base64 inválidos");
+            }
+            String base64Payload = url.substring(commaIdx + 1).replaceAll("\\s+", "");
+            try {
+                byte[] decoded = Base64.getDecoder().decode(base64Payload);
+                if (decoded.length == 0) {
+                    throw invalid(field, "imagen Base64 vacía");
+                }
+            } catch (IllegalArgumentException e) {
+                throw invalid(field, "codificación Base64 inválida");
+            }
+            return url.substring(0, commaIdx + 1) + base64Payload;
+        }
+
+        if (url.length() > MAX_URL_LENGTH) {
+            throw invalid(field, "excede " + MAX_URL_LENGTH + " caracteres");
         }
 
         URI uri;
@@ -43,7 +73,7 @@ public final class ImageUrlValidator {
         }
 
         if (!"https".equalsIgnoreCase(uri.getScheme())) {
-            throw invalid(field, "solo se permite https");
+            throw invalid(field, "solo se permite https o imagen subida en Base64");
         }
         if (uri.getRawUserInfo() != null) {
             throw invalid(field, "no puede incluir credenciales");
@@ -61,7 +91,6 @@ public final class ImageUrlValidator {
             throw invalid(field, "host no permitido");
         }
         if (!isPlainDomainName(host)) {
-            // Rechaza IPs literales (v4, v6, decimal, hex) y nombres sin TLD alfabético.
             throw invalid(field, "debe usar un nombre de dominio, no una IP");
         }
 
@@ -82,7 +111,6 @@ public final class ImageUrlValidator {
                 || host.endsWith(".corp");
     }
 
-    /** Dominio con al menos un punto y TLD que contiene letras (descarta 127.0.0.1, 0x7f.1, 2130706433, [::1]). */
     private static boolean isPlainDomainName(String host) {
         if (host.startsWith("[") || host.contains(":")) {
             return false;

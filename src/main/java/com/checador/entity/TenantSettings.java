@@ -22,10 +22,10 @@ public class TenantSettings extends BaseEntity {
     @Column(name = "slug", nullable = false, unique = true, length = 50)
     private String slug;
 
-    @Column(name = "logo_url")
+    @Column(name = "logo_url", columnDefinition = "LONGTEXT")
     private String logoUrl;
 
-    @Column(name = "icon_url")
+    @Column(name = "icon_url", columnDefinition = "LONGTEXT")
     private String iconUrl;
 
     @Column(name = "primary_color", length = 20)
