@@ -15,6 +15,9 @@ import org.springframework.data.repository.query.Param;
 @Repository
 public interface LeaveRequestRepository extends BaseTenantRepository<LeaveRequest, Long> {
 
+    @EntityGraph(attributePaths = {"user", "branch"})
+    java.util.Optional<LeaveRequest> findById(Long id);
+
     /** Solicitudes de un empleado específico. */
     @EntityGraph(attributePaths = {"user", "branch"})
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
