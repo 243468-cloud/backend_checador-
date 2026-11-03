@@ -137,6 +137,31 @@ public class TenantSettingsService {
     }
 
     /**
+     * Obtiene la configuración de una empresa por su tenant_id sin depender del TenantContext actual.
+     */
+    public TenantSettings getSettingsByTenantId(Long tenantId) {
+        if (tenantId == null) return null;
+        try {
+            return jdbcTemplate.queryForObject(
+                    "SELECT tenant_id, company_name, slug, primary_color, logo_url, icon_url FROM tenant_settings WHERE tenant_id = ?",
+                    (rs, rowNum) -> {
+                        TenantSettings ts = new TenantSettings();
+                        ts.setTenantId(rs.getLong("tenant_id"));
+                        ts.setCompanyName(rs.getString("company_name"));
+                        ts.setSlug(rs.getString("slug"));
+                        ts.setPrimaryColor(rs.getString("primary_color"));
+                        ts.setLogoUrl(rs.getString("logo_url"));
+                        ts.setIconUrl(rs.getString("icon_url"));
+                        return ts;
+                    },
+                    tenantId
+            );
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return null;
+        }
+    }
+
+    /**
      * Endpoint privado para obtener la configuración del tenant actual (ya autenticado).
      */
     public TenantSettings getCurrentTenantSettings() {

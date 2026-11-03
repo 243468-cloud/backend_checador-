@@ -127,7 +127,15 @@ public class BranchService {
             if (lng != null) branch.setLongitude(lng);
             if (radiusMeters != null) branch.setRadiusMeters(radiusMeters);
             if (toleranceMinutes != null) branch.setToleranceMinutes(toleranceMinutes);
-            return branchRepository.save(branch);
+            Branch saved = branchRepository.save(branch);
+            try {
+                var ts = tenantSettingsService.getSettingsByTenantId(effectiveTenantId);
+                if (ts != null) {
+                    saved.setTenantSlug(ts.getSlug());
+                    saved.setCompanyName(ts.getCompanyName());
+                }
+            } catch (Exception ignored) {}
+            return saved;
         } finally {
             if (isSuperuserContext) {
                 TenantContext.setTenantId(0L);
