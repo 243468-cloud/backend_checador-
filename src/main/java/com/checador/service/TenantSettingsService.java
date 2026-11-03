@@ -111,10 +111,10 @@ public class TenantSettingsService {
                             .radiusMeters(rs.getInt("radius_meters"))
                             .toleranceMinutes(rs.getInt("tolerance_minutes"))
                             .active(rs.getBoolean("active"))
-                            .tenantSlug(rs.getString("tenant_slug"))
-                            .companyName(rs.getString("company_name"))
                             .build();
                     b.setTenantId(rs.getLong("tenant_id"));
+                    b.setTenantSlug(rs.getString("tenant_slug"));
+                    b.setCompanyName(rs.getString("company_name"));
                     return b;
                 }
         );

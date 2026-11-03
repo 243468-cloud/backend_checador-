@@ -45,4 +45,20 @@ public class Branch extends BaseEntity {
 
     @Transient
     private String companyName;
+
+    public String getTenantSlug() {
+        return tenantSlug;
+    }
+
+    public void setTenantSlug(String tenantSlug) {
+        this.tenantSlug = tenantSlug;
+    }
+
+    public String getCompanyName() {
+        return companyName;
+    }
+
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
+    }
 }
