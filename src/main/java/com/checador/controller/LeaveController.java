@@ -34,6 +34,9 @@ public class LeaveController {
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/me")
     public ResponseEntity<?> getMyRequests(@AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "No autenticado"));
+        }
         return ResponseEntity.ok(
                 leaveService.getMyRequests(user.getId())
                         .stream().map(this::toResponse).toList());
@@ -152,14 +155,14 @@ public class LeaveController {
     private Map<String, Object> toResponse(LeaveRequest r) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", r.getId());
-        m.put("employeeId", r.getUser().getId());
-        m.put("employeeName", r.getUser().getFullName());
-        m.put("requestType", r.getRequestType().name());
-        m.put("startDate", r.getStartDate().toString());
-        m.put("endDate", r.getEndDate().toString());
+        m.put("employeeId", r.getUser() != null ? r.getUser().getId() : null);
+        m.put("employeeName", r.getUser() != null ? r.getUser().getFullName() : null);
+        m.put("requestType", r.getRequestType() != null ? r.getRequestType().name() : null);
+        m.put("startDate", r.getStartDate() != null ? r.getStartDate().toString() : null);
+        m.put("endDate", r.getEndDate() != null ? r.getEndDate().toString() : null);
         m.put("reason", r.getReason());
         m.put("evidenceUrl", r.getEvidenceUrl());
-        m.put("status", r.getStatus().name());
+        m.put("status", r.getStatus() != null ? r.getStatus().name() : null);
         m.put("adminNotes", r.getAdminNotes());
         m.put("reviewedBy", r.getReviewedBy());
         m.put("createdAt", r.getCreatedAt() != null ? r.getCreatedAt().toString() : null);

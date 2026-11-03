@@ -16,8 +16,10 @@ import org.springframework.data.repository.query.Param;
 public interface LeaveRequestRepository extends BaseTenantRepository<LeaveRequest, Long> {
 
     /** Solicitudes de un empleado específico. */
+    @EntityGraph(attributePaths = {"user", "branch"})
     List<LeaveRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    @EntityGraph(attributePaths = {"user", "branch"})
     java.util.Optional<LeaveRequest> findByIdAndTenantId(Long id, Long tenantId);
 
     /** Solicitudes pendientes de una sucursal (para admin). */

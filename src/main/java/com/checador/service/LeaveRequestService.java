@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
+@Transactional(readOnly = true)
 public class LeaveRequestService {
 
     private final LeaveRequestRepository leaveRepository;
@@ -32,9 +33,21 @@ public class LeaveRequestService {
     public LeaveRequest createRequest(User employee, LeaveType type,
                                       LocalDate startDate, LocalDate endDate,
                                       String reason, String evidenceUrl) {
-        Long tenantId = com.checador.security.TenantContext.getTenantId();
-        Branch branch = branchRepository.findByIdAndTenantId(employee.getBranch().getId(), tenantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Sucursal no encontrada o acceso denegado"));
+        Long tenantId = TenantContext.getTenantId();
+        if ((tenantId == null || tenantId == 0L) && employee != null && employee.getTenantId() != null) {
+            tenantId = employee.getTenantId();
+            TenantContext.setTenantId(tenantId);
+        }
+
+        if (employee == null || employee.getBranch() == null) {
+            throw new IllegalArgumentException("El empleado debe tener una sucursal asignada para solicitar permisos");
+        }
+
+        Branch branch = employee.getBranch();
+        if (tenantId != null && tenantId > 0L) {
+            branch = branchRepository.findByIdAndTenantId(employee.getBranch().getId(), tenantId)
+                    .orElse(employee.getBranch());
+        }
 
         LeaveRequest req = LeaveRequest.builder()
                 .user(employee)
@@ -46,6 +59,9 @@ public class LeaveRequestService {
                 .evidenceUrl(evidenceUrl)
                 .status(LeaveStatus.PENDING)
                 .build();
+        if (tenantId != null) {
+            req.setTenantId(tenantId);
+        }
 
         return leaveRepository.save(req);
     }
@@ -91,6 +107,10 @@ public class LeaveRequestService {
 
     private LeaveRequest findOrThrow(Long id) {
         Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId == 0L) {
+            return leaveRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada"));
+        }
         return leaveRepository.findByIdAndTenantId(id, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada o acceso denegado"));
     }
