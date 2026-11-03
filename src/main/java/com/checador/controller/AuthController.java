@@ -164,7 +164,19 @@ public class AuthController {
         Long tenantId = null;
         String tenantSlug = null;
 
-        if (slug != null && !slug.isBlank()) {
+        // 1. Detectar si el usuario es SUPERUSER (acceso global desde cualquier slug o sin slug)
+        java.util.List<Long> superuserTenants = jdbcTemplate.query(
+                "SELECT tenant_id FROM users WHERE " +
+                "(LOWER(username) = LOWER(?) OR LOWER(COALESCE(email, '')) = LOWER(?) OR LOWER(full_name) = LOWER(?) OR REPLACE(LOWER(full_name), ' ', '') = REPLACE(LOWER(?), ' ', '')) " +
+                "AND role = 'SUPERUSER'",
+                (rs, rowNum) -> rs.getLong("tenant_id"),
+                username, username, username, username
+        );
+
+        if (!superuserTenants.isEmpty()) {
+            tenantId = 0L;
+            tenantSlug = null;
+        } else if (slug != null && !slug.isBlank()) {
             try {
                 tenantId = jdbcTemplate.queryForObject(
                         "SELECT tenant_id FROM tenant_settings WHERE slug = ?", Long.class, slug);
@@ -174,9 +186,10 @@ public class AuthController {
             }
         } else {
             java.util.List<Long> matchedTenants = jdbcTemplate.query(
-                    "SELECT tenant_id FROM users WHERE LOWER(username) = LOWER(?)",
+                    "SELECT tenant_id FROM users WHERE " +
+                    "LOWER(username) = LOWER(?) OR LOWER(COALESCE(email, '')) = LOWER(?) OR LOWER(full_name) = LOWER(?) OR REPLACE(LOWER(full_name), ' ', '') = REPLACE(LOWER(?), ' ', '')",
                     (rs, rowNum) -> rs.getLong("tenant_id"),
-                    username
+                    username, username, username, username
             );
             if (matchedTenants.isEmpty()) {
                 return ResponseEntity.status(401).body(Map.of("error", "Credenciales incorrectas. Verifica tu usuario o contraseña."));

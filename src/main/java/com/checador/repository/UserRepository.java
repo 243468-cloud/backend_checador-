@@ -14,16 +14,34 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends BaseTenantRepository<User, Long> {
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE LOWER(u.username) = LOWER(TRIM(:username))")
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE " +
+           "LOWER(u.username) = LOWER(TRIM(:username)) OR " +
+           "LOWER(COALESCE(u.email, '')) = LOWER(TRIM(:username)) OR " +
+           "LOWER(u.fullName) = LOWER(TRIM(:username)) OR " +
+           "REPLACE(LOWER(u.fullName), ' ', '') = REPLACE(LOWER(TRIM(:username)), ' ', '')")
     Optional<User> findByUsername(@Param("username") String username);
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE u.tenantId = :tenantId AND LOWER(u.username) = LOWER(TRIM(:username))")
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branch WHERE " +
+           "(u.tenantId = :tenantId OR u.role = com.checador.entity.Role.SUPERUSER) AND (" +
+           "LOWER(u.username) = LOWER(TRIM(:username)) OR " +
+           "LOWER(COALESCE(u.email, '')) = LOWER(TRIM(:username)) OR " +
+           "LOWER(u.fullName) = LOWER(TRIM(:username)) OR " +
+           "REPLACE(LOWER(u.fullName), ' ', '') = REPLACE(LOWER(TRIM(:username)), ' ', ''))")
     Optional<User> findByUsernameAndTenantId(@Param("username") String username, @Param("tenantId") Long tenantId);
 
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE LOWER(u.username) = LOWER(TRIM(:username))")
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE " +
+           "LOWER(u.username) = LOWER(TRIM(:username)) OR " +
+           "LOWER(COALESCE(u.email, '')) = LOWER(TRIM(:username)) OR " +
+           "LOWER(u.fullName) = LOWER(TRIM(:username)) OR " +
+           "REPLACE(LOWER(u.fullName), ' ', '') = REPLACE(LOWER(TRIM(:username)), ' ', '')")
     boolean existsByUsername(@Param("username") String username);
 
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.tenantId = :tenantId AND LOWER(u.username) = LOWER(TRIM(:username))")
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE " +
+           "(u.tenantId = :tenantId OR u.role = com.checador.entity.Role.SUPERUSER) AND (" +
+           "LOWER(u.username) = LOWER(TRIM(:username)) OR " +
+           "LOWER(COALESCE(u.email, '')) = LOWER(TRIM(:username)) OR " +
+           "LOWER(u.fullName) = LOWER(TRIM(:username)) OR " +
+           "REPLACE(LOWER(u.fullName), ' ', '') = REPLACE(LOWER(TRIM(:username)), ' ', ''))")
     boolean existsByUsernameAndTenantId(@Param("username") String username, @Param("tenantId") Long tenantId);
 
     boolean existsByRole(Role role);
