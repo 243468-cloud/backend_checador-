@@ -70,3 +70,4 @@ DELIMITER ;
 
 CALL separate_miel_de_la_selva_and_via_gourmet();
 DROP PROCEDURE IF EXISTS separate_miel_de_la_selva_and_via_gourmet;
+

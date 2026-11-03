@@ -18,7 +18,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -74,7 +73,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/audit/**").hasRole("SUPERUSER")
                 .requestMatchers("/api/settings/all").hasRole("SUPERUSER")
 
-                // ── Configuración de la empresa: ADMIN del tenant y SUPERUSER ──
+                // ── Configuración de la empresa: lectura para todos los usuarios autenticados; escritura solo ADMIN/SUPERUSER ──
+                .requestMatchers(HttpMethod.GET, "/api/settings/current").hasAnyRole("EMPLOYEE", "ADMIN", "SUPERUSER")
                 .requestMatchers("/api/settings/current/**").hasAnyRole("ADMIN", "SUPERUSER")
 
                 // ── Horarios: lectura para EMPLOYEE, ADMIN y SUPERUSER; escritura solo ADMIN/SUPERUSER ──
@@ -87,6 +87,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/events/**", "/api/push/**").authenticated()
 
                 // ── Notificaciones ────────────────────────────────────────
+                .requestMatchers(HttpMethod.POST, "/api/notifications/security-alert").authenticated()
                 .requestMatchers("/api/notifications/**").hasAnyRole("ADMIN", "SUPERUSER")
 
                 // ── Ranking & Recompensas ─────────────────────────────────
@@ -127,9 +128,14 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         if (allowedOrigins != null && !allowedOrigins.isBlank()) {
             for (String origin : allowedOrigins.split(",")) {
-                config.addAllowedOrigin(origin.trim()); // Allowed exact origin instead of pattern
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    config.addAllowedOriginPattern(trimmed);
+                }
             }
         }
+        config.addAllowedOriginPattern("https://*.vercel.app");
+        config.addAllowedOriginPattern("http://localhost:*");
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
