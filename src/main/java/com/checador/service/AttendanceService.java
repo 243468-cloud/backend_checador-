@@ -85,7 +85,6 @@ public class AttendanceService {
             throw e;
         }
 
-        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = employee.getShiftType();
         // El horario base se obtiene del ShiftType del empleado por defecto.
         LocalTime scheduledStart = getShiftStart(shift);
@@ -189,7 +188,6 @@ public class AttendanceService {
             throw e;
         }
 
-        LocalDateTime now = LocalDateTime.now(MEXICO_ZONE);
         ShiftType shift = attendance.getShiftType() != null ? attendance.getShiftType() : employee.getShiftType();
         // El horario de salida se obtiene del ShiftType del empleado por defecto.
         LocalTime scheduledEnd = getShiftEnd(shift);
